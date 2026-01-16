@@ -226,4 +226,3 @@ MIT
 
 - [agentsh](https://github.com/erans/agentsh) - Security sandbox for AI agents
 - [E2B](https://e2b.dev) - Cloud sandbox platform
-- [agentsh-daytona](https://github.com/erans/agentsh-daytona) - Similar setup for Daytona workspaces
