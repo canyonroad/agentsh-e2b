@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@e2b/code-interpreter": "^2.3.3",
+    "dotenv": "^17.2.3",
+    "e2b": "^2.10.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
