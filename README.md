@@ -1,6 +1,6 @@
 # E2B Sandbox with agentsh Security
 
-A secure [E2B](https://e2b.dev) sandbox template with [agentsh](https://github.com/erans/agentsh) security enforcement. This template provides a hardened environment for running AI agents with policy-based command and network controls.
+A secure [E2B](https://e2b.dev) sandbox template with [agentsh](https://www.agentsh.org) security enforcement. This template provides a hardened environment for running AI agents with policy-based command and network controls.
 
 ## Features
 
@@ -224,5 +224,5 @@ MIT
 
 ## Related
 
-- [agentsh](https://github.com/erans/agentsh) - Security sandbox for AI agents
+- [agentsh](https://www.agentsh.org) - Security sandbox for AI agents
 - [E2B](https://e2b.dev) - Cloud sandbox platform
