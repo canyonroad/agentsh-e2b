@@ -29,7 +29,7 @@ sleep 2
 STARTUP
 chmod +x /usr/local/bin/agentsh-startup.sh`)
   .setEnvs({
-    'AGENTSH_SERVER': 'http://127.0.0.1:8080',
+    'AGENTSH_SERVER': 'http://127.0.0.1:18080',
   })
   .setUser('user')
   .setWorkdir('/home/user')

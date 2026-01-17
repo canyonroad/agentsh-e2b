@@ -60,9 +60,9 @@ async function main() {
     console.log('='.repeat(70))
 
     await runAgentsh(
-      'curl localhost:8080/health (agentsh server)',
+      'curl localhost:18080/health (agentsh server)',
       '/usr/bin/curl',
-      ['-s', '-w', '\\nHTTP_CODE:%{http_code}', 'http://127.0.0.1:8080/health']
+      ['-s', '-w', '\\nHTTP_CODE:%{http_code}', 'http://127.0.0.1:18080/health']
     )
 
     // =========================================================================
@@ -148,9 +148,9 @@ async function main() {
     console.log('='.repeat(70))
 
     await runAgentsh(
-      'wget localhost:8080/health',
+      'wget localhost:18080/health',
       '/usr/bin/wget',
-      ['-q', '-O', '-', 'http://127.0.0.1:8080/health']
+      ['-q', '-O', '-', 'http://127.0.0.1:18080/health']
     )
 
     await runAgentsh(
