@@ -87,6 +87,18 @@ file_rules:
     decision: deny
     message: "Access to privilege escalation tool blocked: {{.Path}}"
 
+  - name: block-e2b-internals
+    description: Block access to E2B infrastructure binaries and configs
+    paths:
+      - "/usr/bin/envd"           # E2B environment daemon
+      - "/usr/bin/socat"          # Used for E2B port forwarding
+      - "/etc/systemd/**"         # Systemd configs
+      - "/run/systemd/**"         # Systemd runtime
+    operations:
+      - "*"
+    decision: deny
+    message: "Access to E2B/system infrastructure blocked: {{.Path}}"
+
   # ---------------------------------------------------------------------------
   # System paths - minimal read-only
   # ---------------------------------------------------------------------------
@@ -303,6 +315,13 @@ network_rules:
       - "100.100.100.200/32"
     decision: deny
 
+  - name: block-e2b-internal
+    description: Block E2B internal services (events, orchestration)
+    cidrs:
+      - "192.0.2.0/24"      # E2B events service (TEST-NET-1 range)
+    decision: deny
+    message: "Access to E2B internal services blocked"
+
   # ---------------------------------------------------------------------------
   # Block malicious/untrusted domains
   # ---------------------------------------------------------------------------
@@ -457,6 +476,19 @@ command_rules:
       - nsenter
       - unshare
     decision: deny
+
+  - name: block-e2b-interference
+    description: Block commands that could interfere with E2B infrastructure
+    commands:
+      - socat           # Used by E2B for port forwarding
+      - envd            # E2B environment daemon
+      - iptables        # Network rules manipulation
+      - ip6tables
+      - nft             # nftables
+      - tc              # Traffic control
+      - ip              # Network config (ip addr, ip route, etc.)
+    decision: deny
+    message: "Command blocked - could interfere with sandbox infrastructure"
 
   # ---------------------------------------------------------------------------
   # Allow all other commands (E2B needs general shell access)

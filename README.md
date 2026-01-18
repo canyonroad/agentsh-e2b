@@ -66,6 +66,7 @@ The default policy (`default.yaml`) implements a **default-deny allowlist** appr
 | Network Tools | `ssh`, `nc`, `netcat`, `telnet`, `scp` | `block-network-tools` |
 | System Commands | `kill`, `shutdown`, `systemctl`, `mount` | `block-system-commands` |
 | Recursive Delete | `rm -rf`, `rm -r`, `rm --recursive` | `block-rm-recursive` |
+| E2B Infrastructure | `socat`, `envd`, `iptables`, `ip` | `block-e2b-interference` |
 
 **Allowed**: Standard commands (`ls`, `cat`, `grep`), dev tools (`git`, `python3`, `node`, `npm`), single-file operations.
 
@@ -79,6 +80,7 @@ The default policy (`default.yaml`) implements a **default-deny allowlist** appr
 | | `crates.io`, `static.crates.io` | HTTP 200 |
 | | `proxy.golang.org`, `sum.golang.org` | HTTP 200 |
 | **Blocked** | `169.254.169.254` (cloud metadata) | HTTP 403 |
+| | `192.0.2.0/24` (E2B internal services) | HTTP 403 |
 | | `10.0.0.0/8` (private network) | HTTP 403 |
 | | `172.16.0.0/12` (private network) | HTTP 403 |
 | | `192.168.0.0/16` (private network) | HTTP 403 |
