@@ -184,7 +184,7 @@ For sensitive operations, use `decision: approve` to require human approval:
     commands:
       - npm
     args_patterns:
-      - "install*"
+      - "^install.*"  # regex pattern (v0.7.10+)
     decision: approve
     message: "Agent wants to install packages: {{.Args}}"
     timeout: 5m
@@ -206,7 +206,7 @@ For sensitive operations, use `decision: approve` to require human approval:
 
 ## How It Works
 
-1. **Template Build** - Installs agentsh v0.7.2+ on top of `e2bdev/code-interpreter:latest`
+1. **Template Build** - Installs agentsh v0.7.10+ on top of `e2bdev/code-interpreter:latest`
 2. **Sandbox Start** - `agentsh server` starts automatically via startup script
 3. **Session Creation** - Create a session with `agentsh session create`
 4. **Command Execution** - Run commands via `agentsh exec` which enforces policies
@@ -214,7 +214,7 @@ For sensitive operations, use `decision: approve` to require human approval:
 
 ## Requirements
 
-- agentsh v0.7.2+ (fixes HTTPS CONNECT tunneling)
+- agentsh v0.7.10+ (regex patterns for args_patterns)
 - E2B v2 Template SDK
 - Generic `e2b` package (not `@e2b/code-interpreter`)
 

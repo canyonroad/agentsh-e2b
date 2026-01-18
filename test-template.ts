@@ -16,7 +16,7 @@ async function main() {
 
     // Test 2: Check server can start (if not already running)
     console.log('=== Test 2: Check agentsh server ===')
-    const serverCheck = await sbx.commands.run('curl -s http://127.0.0.1:8080/health 2>/dev/null || echo "Server not responding"')
+    const serverCheck = await sbx.commands.run('curl -s http://127.0.0.1:18080/health 2>/dev/null || echo "Server not responding"')
     console.log(`Server health: ${serverCheck.stdout.trim()}`)
 
     // Check if server process is running
@@ -49,7 +49,7 @@ async function main() {
     // Wait a moment for server to start
     await sbx.commands.run('sleep 2')
 
-    const healthCheck = await sbx.commands.run('curl -s http://127.0.0.1:8080/health')
+    const healthCheck = await sbx.commands.run('curl -s http://127.0.0.1:18080/health')
     console.log(`Server health after start: ${healthCheck.stdout.trim()}`)
     console.log('✓ Server can be started\n')
 
