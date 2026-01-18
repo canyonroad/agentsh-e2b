@@ -2,10 +2,38 @@
 
 A secure [E2B](https://e2b.dev) sandbox template with [agentsh](https://www.agentsh.org) security enforcement. This template provides a hardened environment for running AI agents with policy-based command and network controls.
 
-## Features
+## agentsh Features in E2B
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Shell Shim** | ✅ Works | Transparent interception of `/bin/bash` - all shell commands routed through policy engine |
+| **Command Policies** | ✅ Works | Block/allow/approve commands based on name, args, paths |
+| **Network Policies** | ✅ Works | Default-deny allowlist for outbound connections |
+| **Cloud Metadata Protection** | ✅ Works | Blocks `169.254.169.254` and cloud provider endpoints |
+| **Private Network Isolation** | ✅ Works | Blocks `10.x`, `172.16.x`, `192.168.x` ranges |
+| **E2B Infrastructure Protection** | ✅ Works | Blocks access to E2B internal services (`192.0.2.x`, `169.254.x`) |
+| **DLP / Secret Redaction** | ✅ Works | Redacts API keys, tokens, secrets from command output |
+| **Session Management** | ✅ Works | Isolated sessions with workspace binding |
+| **Soft-Delete / Quarantine** | ✅ Works | Deleted files moved to quarantine for recovery |
+| **Audit Logging** | ✅ Works | All commands logged with decisions and timing |
+| **Package Registry Access** | ✅ Works | Allowlist for npm, PyPI, crates.io, Go modules |
+| **HTTP Proxy** | ✅ Works | Network traffic routed through policy-enforcing proxy |
+
+### Features Not Available in E2B
+
+| Feature | Status | Reason |
+|---------|--------|--------|
+| **Interactive Approvals** | ⚠️ Limited | E2B sandboxes typically run unattended; no human to approve |
+| **gRPC Server** | ❌ Disabled | Conflicts with E2B's infrastructure; HTTP-only mode used |
+| **Seccomp Syscall Filtering** | ❌ N/A | E2B provides its own container-level isolation |
+| **Network Namespaces** | ❌ N/A | E2B manages network isolation at the sandbox level |
+| **PTY/Terminal Sessions** | ⚠️ Limited | E2B uses non-interactive command execution |
+
+## Quick Features Summary
 
 - **Command Policy Enforcement** - Block dangerous commands like `sudo`, `ssh`, `rm -rf`
 - **Network Policy Enforcement** - Default-deny allowlist for network access
+- **Shell Shim** - Transparent interception of all bash commands
 - **Cloud Metadata Protection** - Blocks access to AWS/GCP/Azure instance credentials
 - **Private Network Isolation** - Prevents lateral movement to internal hosts
 - **Package Registry Access** - Allows npm, PyPI, crates.io, Go modules
@@ -37,17 +65,23 @@ import { Sandbox } from 'e2b'  // Use generic Sandbox, NOT @e2b/code-interpreter
 
 const sbx = await Sandbox.create('e2b-agentsh')
 
-// Start agentsh server
-await sbx.commands.run('/usr/local/bin/agentsh-startup.sh')
+// Server starts automatically via startup script (includes shell shim installation)
+// Verify server is running
+const health = await sbx.commands.run('curl -s http://127.0.0.1:18080/health')
+console.log('Server status:', health.stdout)  // "ok"
 
 // Create a session
 const sess = await sbx.commands.run('agentsh session create --workspace /home/user --json')
-const sessionId = JSON.parse(sess.stdout.trim()).session_id
+const sessionData = JSON.parse(sess.stdout.trim())
+const sessionId = sessionData.id
 
 // Run commands through agentsh (policy enforced)
-const cmd = JSON.stringify({ command: '/bin/echo', args: ['Hello, secure world!'] })
-const result = await sbx.commands.run(`agentsh exec ${sessionId} --json '${cmd}'`)
+const result = await sbx.commands.run(`agentsh exec ${sessionId} -- /bin/echo Hello, secure world!`)
 console.log(result.stdout)
+
+// Or just use bash directly - the shell shim intercepts it automatically
+const shimResult = await sbx.commands.run('/bin/bash -c "echo Hello through shim"')
+console.log(shimResult.stdout)
 
 await sbx.kill()
 ```
@@ -74,7 +108,7 @@ The default policy (`default.yaml`) implements a **default-deny allowlist** appr
 
 | Category | Destinations | Result |
 |----------|--------------|--------|
-| **Allowed** | `127.0.0.1` (localhost) | HTTP 200 |
+| **Allowed** | `127.0.0.1:18080` (localhost/agentsh) | HTTP 200 |
 | | `registry.npmjs.org` | HTTP 200 |
 | | `pypi.org`, `files.pythonhosted.org` | HTTP 200 |
 | | `crates.io`, `static.crates.io` | HTTP 200 |
@@ -117,7 +151,7 @@ The default policy (`default.yaml`) implements a **default-deny allowlist** appr
 
 ```
 === LOCALHOST - ALLOWED ===
-curl http://127.0.0.1:8080/health → ok HTTP_CODE:200
+curl http://127.0.0.1:18080/health → ok HTTP_CODE:200
 
 === CLOUD METADATA - BLOCKED ===
 curl http://169.254.169.254/ → blocked by policy HTTP_CODE:403
@@ -209,10 +243,13 @@ For sensitive operations, use `decision: approve` to require human approval:
 ## How It Works
 
 1. **Template Build** - Installs agentsh v0.7.10+ on top of `e2bdev/code-interpreter:latest`
-2. **Sandbox Start** - `agentsh server` starts automatically via startup script
-3. **Session Creation** - Create a session with `agentsh session create`
-4. **Command Execution** - Run commands via `agentsh exec` which enforces policies
-5. **Network Proxy** - All network traffic routes through agentsh's proxy for policy enforcement
+2. **Sandbox Start** - Startup script runs automatically:
+   - Starts `agentsh server` on port 18080
+   - Installs shell shim (replaces `/bin/bash` with agentsh shim, moves real bash to `/bin/bash.real`)
+3. **Command Execution** - Two modes:
+   - **Shell Shim (transparent)**: Any `/bin/bash` call is intercepted and policy-enforced automatically
+   - **Direct Exec**: Use `agentsh exec SESSION_ID -- COMMAND [ARGS...]` for explicit policy enforcement
+4. **Network Proxy** - All network traffic routes through agentsh's proxy for policy enforcement
 
 ## Requirements
 
