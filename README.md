@@ -2,6 +2,62 @@
 
 A secure [E2B](https://e2b.dev) sandbox template with [agentsh](https://www.agentsh.org) security enforcement. This template provides a hardened environment for running AI agents with policy-based command and network controls.
 
+## Why agentsh + E2B?
+
+**E2B provides isolation FROM the sandbox. agentsh provides control INSIDE the sandbox.**
+
+| Layer | E2B Alone | E2B + agentsh |
+|-------|-----------|---------------|
+| **Container Isolation** | ✅ Agent can't escape sandbox | ✅ Same |
+| **Command Control** | ❌ Agent can run ANY command | ✅ Policy-based allow/block/approve |
+| **Network Control** | ❌ Agent can connect ANYWHERE | ✅ Default-deny allowlist |
+| **Cloud Credential Theft** | ❌ Agent can access `169.254.169.254` | ✅ Blocked by policy |
+| **Data Exfiltration** | ❌ Agent can POST data anywhere | ✅ Only allowed domains |
+| **Destructive Commands** | ❌ `rm -rf /` works | ✅ Blocked + soft-delete recovery |
+| **Lateral Movement** | ❌ Agent can scan internal networks | ✅ Private ranges blocked |
+| **Audit Trail** | ❌ Limited visibility | ✅ Full command + network logging |
+| **Secret Leakage** | ❌ Secrets visible in output | ✅ DLP redacts API keys/tokens |
+
+### The Problem
+
+E2B sandboxes isolate AI agents from your infrastructure—but inside the sandbox, the agent has free rein:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  E2B Sandbox                                                │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  AI Agent can:                                        │  │
+│  │  • Run sudo, ssh, nc, curl to anywhere               │  │
+│  │  • Access cloud metadata (169.254.169.254)           │  │
+│  │  • Connect to internal networks (10.x, 192.168.x)    │  │
+│  │  • Delete critical files (rm -rf)                    │  │
+│  │  • Exfiltrate data to attacker-controlled servers    │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### The Solution
+
+agentsh adds a policy enforcement layer inside the sandbox:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  E2B Sandbox + agentsh                                      │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  agentsh Policy Engine                                │  │
+│  │  ┌─────────────────────────────────────────────────┐  │  │
+│  │  │  AI Agent (controlled):                         │  │  │
+│  │  │  • Commands: allow list, block sudo/ssh/nc      │  │  │
+│  │  │  • Network: allow npm/pypi, block all else      │  │  │
+│  │  │  • Files: soft-delete, quarantine recovery      │  │  │
+│  │  │  • Output: DLP redacts secrets                  │  │  │
+│  │  └─────────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key benefit**: The shell shim makes this transparent—agents don't need code changes. Every `/bin/bash` call is automatically policy-enforced.
+
 ## agentsh Features in E2B
 
 | Feature | Status | Description |
@@ -28,16 +84,6 @@ A secure [E2B](https://e2b.dev) sandbox template with [agentsh](https://www.agen
 | **Seccomp Syscall Filtering** | ❌ N/A | E2B provides its own container-level isolation |
 | **Network Namespaces** | ❌ N/A | E2B manages network isolation at the sandbox level |
 | **PTY/Terminal Sessions** | ⚠️ Limited | E2B uses non-interactive command execution |
-
-## Quick Features Summary
-
-- **Command Policy Enforcement** - Block dangerous commands like `sudo`, `ssh`, `rm -rf`
-- **Network Policy Enforcement** - Default-deny allowlist for network access
-- **Shell Shim** - Transparent interception of all bash commands
-- **Cloud Metadata Protection** - Blocks access to AWS/GCP/Azure instance credentials
-- **Private Network Isolation** - Prevents lateral movement to internal hosts
-- **Package Registry Access** - Allows npm, PyPI, crates.io, Go modules
-- **DLP (Data Loss Prevention)** - Redacts API keys, tokens, and secrets from output
 
 ## Quick Start
 
