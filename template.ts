@@ -6,7 +6,7 @@ export const template = Template()
   .setWorkdir('/')
   .setEnvs({
     'AGENTSH_REPO': 'erans/agentsh',
-    'AGENTSH_VERSION': 'v0.7.10',  // Cache bust for new version
+    'AGENTSH_VERSION': 'v0.7.10',
   })
   .setEnvs({
     'DEB_ARCH': 'amd64',
@@ -20,14 +20,10 @@ export const template = Template()
   .runCmd('chown -R user:user /var/lib/agentsh /var/log/agentsh /etc/agentsh')
   // Give user passwordless sudo for agentsh
   .runCmd('echo "user ALL=(ALL) NOPASSWD: /usr/bin/agentsh" >> /etc/sudoers')
-  // Create startup script that starts the server
-  .runCmd(`cat > /usr/local/bin/agentsh-startup.sh << 'STARTUP'
-#!/bin/bash
-# Start agentsh server in background
-agentsh server &
-sleep 2
-STARTUP
-chmod +x /usr/local/bin/agentsh-startup.sh`)
+  // Create startup script that:
+  // 1. Starts the agentsh server
+  // 2. Installs the shell shim (uses sudo because it needs to move /bin/bash)
+  .runCmd('printf "#!/bin/bash\\nset -e\\n# Start agentsh server\\nagentsh server &\\nsleep 2\\n# Install shell shim at runtime with sudo (replaces /bin/bash, moves real bash to /bin/bash.real)\\nsudo agentsh shim install-shell --root / --shim /usr/bin/agentsh-shell-shim --bash --i-understand-this-modifies-the-host\\necho \\"agentsh ready with shim\\"\\n" > /usr/local/bin/agentsh-startup.sh && chmod +x /usr/local/bin/agentsh-startup.sh')
   .setEnvs({
     'AGENTSH_SERVER': 'http://127.0.0.1:18080',
   })

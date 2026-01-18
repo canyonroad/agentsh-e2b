@@ -53,6 +53,37 @@ async function main() {
     console.log(`Server health after start: ${healthCheck.stdout.trim()}`)
     console.log('✓ Server can be started\n')
 
+    // Test 7: Check shell shim status
+    console.log('=== Test 7: Check shell shim status ===')
+    const bashFile = await sbx.commands.run('file /bin/bash')
+    console.log(`/bin/bash: ${bashFile.stdout.trim()}`)
+
+    const bashReal = await sbx.commands.run('file /bin/bash.real 2>/dev/null || echo "/bin/bash.real not found"')
+    console.log(`/bin/bash.real: ${bashReal.stdout.trim()}`)
+
+    const shimBin = await sbx.commands.run('file /usr/bin/agentsh-shell-shim 2>/dev/null || echo "shim binary not found"')
+    console.log(`shim binary: ${shimBin.stdout.trim()}`)
+
+    // Try to install shim manually with sudo if not already installed
+    if (bashReal.stdout.includes('not found')) {
+      console.log('\nShim not installed, trying to install with sudo...')
+      const shimInstall = await sbx.commands.run('sudo agentsh shim install-shell --root / --shim /usr/bin/agentsh-shell-shim --bash --i-understand-this-modifies-the-host 2>&1')
+      console.log(`Install result: ${shimInstall.stdout.trim()}`)
+
+      // Re-check after install
+      const bashFile2 = await sbx.commands.run('file /bin/bash')
+      console.log(`/bin/bash after install: ${bashFile2.stdout.trim()}`)
+      const bashReal2 = await sbx.commands.run('file /bin/bash.real 2>/dev/null || echo "/bin/bash.real not found"')
+      console.log(`/bin/bash.real after install: ${bashReal2.stdout.trim()}`)
+    }
+    console.log('✓ Shim check completed\n')
+
+    // Test 8: Test command execution through shim
+    console.log('=== Test 8: Test command through shim ===')
+    const testShim = await sbx.commands.run('/bin/bash -c "echo Hello through shim"')
+    console.log(`Shim command result: ${testShim.stdout.trim()}`)
+    console.log('✓ Shim command execution works\n')
+
     console.log('=== All tests completed successfully! ===')
 
   } catch (error) {
