@@ -502,6 +502,69 @@ command_rules:
     decision: allow
 
 # =============================================================================
+# ENVIRONMENT POLICY
+# =============================================================================
+
+env_policy:
+  # Allowlist of environment variables that commands can access
+  # Wildcards supported: PATH, HOME, USER, LANG*, LC_*, TERM*, etc.
+  allow:
+    - PATH
+    - HOME
+    - USER
+    - SHELL
+    - LANG
+    - LANG_*
+    - LC_*
+    - TERM
+    - TERM_*
+    - TZ
+    - PWD
+    - OLDPWD
+    - SHLVL
+    - _
+    # Node.js
+    - NODE_ENV
+    - NODE_PATH
+    - NPM_*
+    # Python
+    - PYTHONPATH
+    - VIRTUAL_ENV
+    - PIP_*
+    # Git
+    - GIT_*
+    # Agentsh
+    - AGENTSH_*
+    # HTTP proxy settings (for network rules)
+    - HTTP_PROXY
+    - HTTPS_PROXY
+    - http_proxy
+    - https_proxy
+    - NO_PROXY
+    - no_proxy
+
+  # Denylist - these are always blocked even if they match allow patterns
+  deny:
+    - AWS_*
+    - AZURE_*
+    - GCP_*
+    - GOOGLE_*
+    - OPENAI_API_KEY
+    - ANTHROPIC_API_KEY
+    - DATABASE_URL
+    - DB_*
+    - SECRET_*
+    - PASSWORD*
+    - PRIVATE_*
+    - API_KEY*
+    - TOKEN*
+
+  # Limits to prevent env enumeration attacks
+  max_bytes: 65536      # Max total size of env vars (64KB)
+  max_keys: 100         # Max number of env vars
+  block_iteration: true # Prevent enumeration of all env vars
+
+# =============================================================================
 # RESOURCE LIMITS - Conservative
 # =============================================================================
 

@@ -40,21 +40,33 @@ sandbox:
     max_cpu_percent: 100
     max_processes: 256
 
+  # FUSE filesystem for file operation interception
+  # Detected as available in E2B
   fuse:
-    enabled: false  # Disabled - requires FUSE mount in container
+    enabled: true
 
   network:
     enabled: true
     intercept_mode: "all"
     proxy_listen_addr: "127.0.0.1:0"
 
+  # Cgroups v2 detected as available in E2B
   cgroups:
-    enabled: false  # Disabled - cgroup filesystem is read-only in container
+    enabled: true
 
-  # Seccomp disabled - requires privileged mode or CAP_SYS_PTRACE
-  # Command rules still work for top-level commands
+  # Seccomp with user_notify detected as available in E2B
+  # Full mode: seccomp + eBPF + FUSE for 100% protection
   seccomp:
-    enabled: false
+    enabled: true
+
+# Security mode as recommended by agentsh detect
+security:
+  mode: full
+  strict: true
+
+# Capabilities as recommended by agentsh detect
+capabilities:
+  allow: []
 
 proxy:
   mode: "embedded"

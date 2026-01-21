@@ -74,15 +74,21 @@ agentsh adds a policy enforcement layer inside the sandbox:
 | **Audit Logging** | ✅ Works | All commands logged with decisions and timing |
 | **Package Registry Access** | ✅ Works | Allowlist for npm, PyPI, crates.io, Go modules |
 | **HTTP Proxy** | ✅ Works | Network traffic routed through policy-enforcing proxy |
+| **Seccomp** | ✅ Works | Full seccomp with user_notify for syscall interception |
+| **eBPF** | ✅ Works | eBPF-based monitoring and enforcement |
+| **FUSE** | ✅ Works | FUSE filesystem for file operation interception |
+| **Cgroups v2** | ✅ Works | Resource limits via cgroups v2 |
+| **Landlock** | ✅ Works | Landlock ABI v2 for additional filesystem restrictions |
+| **Env Policy** | ✅ Works | Environment variable filtering with allow/deny lists |
+| **Full Security Mode** | ✅ Works | 100% protection score using seccomp + eBPF + FUSE |
 
 ### Features Not Available in E2B
 
 | Feature | Status | Reason |
 |---------|--------|--------|
 | **Interactive Approvals** | ⚠️ Limited | E2B sandboxes typically run unattended; no human to approve |
-| **gRPC Server** | ❌ Disabled | Conflicts with E2B's infrastructure; HTTP-only mode used |
-| **Seccomp Syscall Filtering** | ❌ N/A | E2B provides its own container-level isolation |
-| **Network Namespaces** | ❌ N/A | E2B manages network isolation at the sandbox level |
+| **Landlock Network** | ❌ N/A | Requires kernel 6.7+ (Landlock ABI v4); use proxy-based network control instead |
+| **PID Namespace** | ❌ N/A | E2B manages process isolation at the sandbox level |
 | **PTY/Terminal Sessions** | ⚠️ Limited | E2B uses non-interactive command execution |
 
 ## Quick Start
@@ -274,6 +280,40 @@ For sensitive operations, use `decision: approve` to require human approval:
 
 > Note: Approvals require `approvals.enabled: true` in `config.yaml`
 
+### Environment Variable Filtering
+
+The `env_policy` section in `default.yaml` controls which environment variables commands can access:
+
+```yaml
+env_policy:
+  # Allowlist - only these vars are visible to commands
+  allow:
+    - PATH
+    - HOME
+    - USER
+    - NODE_ENV
+    - PYTHONPATH
+    - GIT_*           # Wildcards supported
+    - AGENTSH_*
+
+  # Denylist - these are always blocked (takes precedence over allow)
+  deny:
+    - AWS_*
+    - OPENAI_API_KEY
+    - ANTHROPIC_API_KEY
+    - DATABASE_URL
+    - SECRET_*
+    - PASSWORD*
+    - TOKEN*
+
+  # Limits to prevent env enumeration attacks
+  max_bytes: 65536      # Max total size of env vars
+  max_keys: 100         # Max number of env vars
+  block_iteration: true # Prevent enumeration of all env vars
+```
+
+This prevents credential leakage by ensuring agents can only see necessary environment variables while blocking access to secrets like API keys and database credentials.
+
 ## Files
 
 | File | Description |
@@ -288,7 +328,7 @@ For sensitive operations, use `decision: approve` to require human approval:
 
 ## How It Works
 
-1. **Template Build** - Installs agentsh v0.7.10+ on top of `e2bdev/code-interpreter:latest`
+1. **Template Build** - Installs agentsh v0.8.10+ on top of `e2bdev/code-interpreter:latest`
 2. **Sandbox Start** - Startup script runs automatically:
    - Starts `agentsh server` on port 18080
    - Installs shell shim (replaces `/bin/bash` with agentsh shim, moves real bash to `/bin/bash.real`)
@@ -299,7 +339,7 @@ For sensitive operations, use `decision: approve` to require human approval:
 
 ## Requirements
 
-- agentsh v0.7.10+ (regex patterns for args_patterns)
+- agentsh v0.8.10+ (regex patterns for args_patterns, env var injection)
 - E2B v2 Template SDK
 - Generic `e2b` package (not `@e2b/code-interpreter`)
 
