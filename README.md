@@ -314,6 +314,37 @@ env_policy:
 
 This prevents credential leakage by ensuring agents can only see necessary environment variables while blocking access to secrets like API keys and database credentials.
 
+## E2B Capability Detection
+
+Running `agentsh detect` inside the E2B sandbox shows the available security features:
+
+```
+Platform: linux
+Security Mode: full
+Protection Score: 100%
+
+CAPABILITIES
+----------------------------------------
+  capabilities_drop        ✓
+  cgroups_v2               ✓
+  ebpf                     ✓
+  fuse                     ✓
+  landlock                 ✓
+  landlock_abi             ✓ (v2)
+  landlock_network         -
+  pid_namespace            -
+  seccomp                  ✓
+  seccomp_basic            ✓
+  seccomp_user_notify      ✓
+
+TIPS
+----------------------------------------
+  landlock_network: Kernel-level network restrictions disabled
+    -> Requires kernel 6.7+ (Landlock ABI v4). Upgrade kernel or use proxy-based network control.
+```
+
+This configuration achieves **100% protection score** using seccomp + eBPF + FUSE for complete syscall and file operation interception.
+
 ## Files
 
 | File | Description |
