@@ -6,14 +6,14 @@ export const template = Template()
   .setWorkdir('/')
   .setEnvs({
     'AGENTSH_REPO': 'erans/agentsh',
-    'AGENTSH_VERSION': 'v0.8.10',
+    'AGENTSH_VERSION': 'v0.9.8',
   })
   .setEnvs({
     'DEB_ARCH': 'amd64',
   })
   .setUser('root')
   .runCmd('apt-get update && apt-get install -y --no-install-recommends ca-certificates curl jq libseccomp2 sudo && rm -rf /var/lib/apt/lists/*')
-  .runCmd(`set -eux; LATEST_TAG=$(curl -fsSL "https://api.github.com/repos/\${AGENTSH_REPO}/releases/latest" | jq -r '.tag_name'); version="\${LATEST_TAG#v}"; deb="agentsh_\${version}_linux_\${DEB_ARCH}.deb"; url="https://github.com/\${AGENTSH_REPO}/releases/download/\${LATEST_TAG}/\${deb}"; echo "Downloading agentsh \${LATEST_TAG}: \${url}"; curl -fsSL -L "\${url}" -o /tmp/agentsh.deb; dpkg -i /tmp/agentsh.deb; rm -f /tmp/agentsh.deb; agentsh --version`)
+  .runCmd(`set -eux; version="\${AGENTSH_VERSION#v}"; deb="agentsh_\${version}_linux_\${DEB_ARCH}.deb"; url="https://github.com/\${AGENTSH_REPO}/releases/download/\${AGENTSH_VERSION}/\${deb}"; echo "Downloading agentsh \${AGENTSH_VERSION}: \${url}"; curl -fsSL -L "\${url}" -o /tmp/agentsh.deb; dpkg -i /tmp/agentsh.deb; rm -f /tmp/agentsh.deb; agentsh --version`)
   .runCmd('mkdir -p /etc/agentsh/policies /var/lib/agentsh/quarantine /var/lib/agentsh/sessions /var/log/agentsh && chmod 755 /etc/agentsh /etc/agentsh/policies && chmod 755 /var/lib/agentsh /var/lib/agentsh/quarantine /var/lib/agentsh/sessions && chmod 755 /var/log/agentsh')
   .copy('default.yaml', '/etc/agentsh/policies/default.yaml')
   .copy('config.yaml', '/etc/agentsh/config.yaml')
@@ -23,7 +23,8 @@ export const template = Template()
   // Create startup script that:
   // 1. Starts the agentsh server
   // 2. Installs the shell shim (uses sudo because it needs to move /bin/bash)
-  .runCmd('printf "#!/bin/bash\\nset -e\\n# Start agentsh server\\nagentsh server &\\nsleep 2\\n# Install shell shim at runtime with sudo (replaces /bin/bash, moves real bash to /bin/bash.real)\\nsudo agentsh shim install-shell --root / --shim /usr/bin/agentsh-shell-shim --bash --i-understand-this-modifies-the-host\\necho \\"agentsh ready with shim\\"\\n" > /usr/local/bin/agentsh-startup.sh && chmod +x /usr/local/bin/agentsh-startup.sh')
+  // 3. Warms up the shim so its session is established before E2B marks sandbox ready
+  .runCmd('printf "#!/bin/bash\\nset -e\\n# Start agentsh server\\nagentsh server &\\nsleep 2\\n# Install shell shim at runtime with sudo (replaces /bin/bash, moves real bash to /bin/bash.real)\\nsudo agentsh shim install-shell --root / --shim /usr/bin/agentsh-shell-shim --bash --i-understand-this-modifies-the-host\\n# Warm up the shim to establish its session before sandbox is marked ready\\n/bin/bash -c \\"echo shim warmup ok\\"\\necho \\"agentsh ready with shim\\"\\n" > /usr/local/bin/agentsh-startup.sh && chmod +x /usr/local/bin/agentsh-startup.sh')
   .setEnvs({
     'AGENTSH_SERVER': 'http://127.0.0.1:18080',
   })

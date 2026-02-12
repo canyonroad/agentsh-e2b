@@ -41,17 +41,11 @@ async function main() {
     console.log(`Python output: ${pythonResult.stdout.trim()}`)
     console.log('✓ Python execution works\n')
 
-    // Test 6: Start the agentsh server manually and test
-    console.log('=== Test 6: Start agentsh server and test ===')
-    const startServer = await sbx.commands.run('agentsh server &')
-    console.log('Starting server...')
-
-    // Wait a moment for server to start
-    await sbx.commands.run('sleep 2')
-
+    // Test 6: Verify agentsh server is running (started by startup script)
+    console.log('=== Test 6: Verify agentsh server ===')
     const healthCheck = await sbx.commands.run('curl -s http://127.0.0.1:18080/health')
-    console.log(`Server health after start: ${healthCheck.stdout.trim()}`)
-    console.log('✓ Server can be started\n')
+    console.log(`Server health: ${healthCheck.stdout.trim()}`)
+    console.log('✓ Server is running\n')
 
     // Test 7: Check shell shim status
     console.log('=== Test 7: Check shell shim status ===')

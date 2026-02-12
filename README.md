@@ -197,6 +197,24 @@ The default policy (`default.yaml`) implements a **default-deny allowlist** appr
 
 === BLOCKED: Recursive Delete ===
 --- /bin/rm -rf /tmp/test ---     ✗ BLOCKED (rule: block-rm-recursive)
+
+=== FILESYSTEM: Workspace Access (allowed) ===
+--- Write to workspace ---        ✓ ALLOWED (exit: 0)
+--- Read from workspace ---       ✓ ALLOWED (exit: 0)
+
+=== FILESYSTEM: Blocked paths ===
+--- Read /proc/1/environ ---      ✗ BLOCKED (rule: deny-proc-sys)
+--- Read /sys/kernel/hostname --- ✗ BLOCKED (rule: deny-proc-sys)
+--- Write to /etc/passwd ---      ✗ BLOCKED (rule: default-deny-files)
+--- Write outside workspace ---   ✗ BLOCKED (rule: default-deny-files)
+
+=== FILESYSTEM: Credential access (blocked/approve) ===
+--- Read ~/.ssh/id_rsa ---        ✗ BLOCKED (rule: approve-ssh-access)
+--- Read ~/.aws/credentials ---   ✗ BLOCKED (rule: approve-aws-credentials)
+--- Read .env file ---            ✗ BLOCKED (rule: approve-env-files)
+
+=== FILESYSTEM: Soft-delete in workspace ===
+--- Delete workspace file ---     ✓ SOFT-DELETE (quarantined, recoverable)
 ```
 
 ### Network Blocking Demo
@@ -359,7 +377,7 @@ This configuration achieves **100% protection score** using seccomp + eBPF + FUS
 
 ## How It Works
 
-1. **Template Build** - Installs agentsh v0.8.10+ on top of `e2bdev/code-interpreter:latest`
+1. **Template Build** - Installs agentsh v0.9.8+ on top of `e2bdev/code-interpreter:latest`
 2. **Sandbox Start** - Startup script runs automatically:
    - Starts `agentsh server` on port 18080
    - Installs shell shim (replaces `/bin/bash` with agentsh shim, moves real bash to `/bin/bash.real`)
@@ -370,7 +388,7 @@ This configuration achieves **100% protection score** using seccomp + eBPF + FUS
 
 ## Requirements
 
-- agentsh v0.8.10+ (regex patterns for args_patterns, env var injection)
+- agentsh v0.9.8+ (regex patterns for args_patterns, env var injection)
 - E2B v2 Template SDK
 - Generic `e2b` package (not `@e2b/code-interpreter`)
 

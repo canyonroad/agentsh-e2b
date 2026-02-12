@@ -1,17 +1,30 @@
 import 'dotenv/config'
 import { Sandbox } from 'e2b'
 
+const AGENTSH_API = 'http://127.0.0.1:18080'
+
 async function main() {
   console.log('Creating sandbox...')
   const sbx = await Sandbox.create('e2b-agentsh')
 
   try {
     console.log(`Sandbox created: ${sbx.sandboxId}\n`)
-    await sbx.commands.run('sleep 2')
 
-    // Create a session
+    // Wait for agentsh server to be fully ready
+    for (let i = 0; i < 10; i++) {
+      try {
+        const h = await sbx.commands.run(`curl -sf http://127.0.0.1:18080/health`, { timeout: 3 })
+        if (h.stdout.trim() === 'ok') break
+      } catch {}
+      await sbx.commands.run('sleep 1')
+    }
+
+    // Create a session via HTTP API
     console.log('=== Creating agentsh session ===')
-    const createSession = await sbx.commands.run('agentsh session create --workspace /home/user --json')
+    await sbx.files.write('/tmp/session-req.json', '{"workspace":"/home/user"}')
+    const createSession = await sbx.commands.run(
+      `curl -s -X POST ${AGENTSH_API}/api/v1/sessions -H "Content-Type: application/json" -d @/tmp/session-req.json`
+    )
     const sessionData = JSON.parse(createSession.stdout)
     const sessionId = sessionData.id
     console.log(`Session ID: ${sessionId}\n`)
@@ -20,34 +33,34 @@ async function main() {
     console.log('DEMONSTRATING AGENTSH NETWORK POLICY BLOCKING')
     console.log('='.repeat(70))
 
-    // Helper to run via agentsh exec and show full output
+    // Helper to run via agentsh exec HTTP API
     async function runAgentsh(description: string, command: string, args: string[] = []) {
       console.log(`\n--- ${description} ---`)
       console.log(`Command: ${command} ${args.join(' ')}`)
-      const json = JSON.stringify({ command, args })
-      const cmd = `agentsh exec ${sessionId} --json '${json}' 2>&1`
+      const body = JSON.stringify({ command, args })
+      await sbx.files.write('/tmp/exec-req.json', body)
+      const cmd = `curl -s -X POST "${AGENTSH_API}/api/v1/sessions/${sessionId}/exec" -H "Content-Type: application/json" -d @/tmp/exec-req.json --max-time 15`
       try {
         const result = await sbx.commands.run(cmd, { timeout: 20 })
-        const output = result.stdout.trim()
-        console.log(`Exit code: ${result.exitCode}`)
-        // Show first 150 chars of output
-        if (output) {
-          const preview = output.substring(0, 150).replace(/\n/g, ' ')
-          console.log(`Output: ${preview}${output.length > 150 ? '...' : ''}`)
+        const resp = JSON.parse(result.stdout)
+        const exitCode = resp.result?.exit_code
+        const stdout = resp.result?.stdout || ''
+        const blocked = resp.events?.blocked_operations || []
+
+        console.log(`Exit code: ${exitCode}`)
+        if (blocked.length > 0) {
+          const rule = blocked[0]?.rule || 'unknown'
+          console.log(`BLOCKED by policy: ${rule}`)
+          return { allowed: false, output: stdout }
         }
-        return { allowed: true, output }
+        if (stdout) {
+          const preview = stdout.substring(0, 150).replace(/\n/g, ' ')
+          console.log(`Output: ${preview}${stdout.length > 150 ? '...' : ''}`)
+        }
+        return { allowed: exitCode === 0, output: stdout }
       } catch (e: any) {
         const output = e.result?.stdout || ''
-        console.log(`Exit code: ${e.result?.exitCode}`)
-
-        if (output.includes('denied by policy')) {
-          const ruleMatch = output.match(/rule=([^\)]+)/)
-          const rule = ruleMatch ? ruleMatch[1] : 'unknown'
-          console.log(`BLOCKED by policy: ${rule}`)
-        } else {
-          const preview = output.substring(0, 150).replace(/\n/g, ' ')
-          console.log(`Output: ${preview}`)
-        }
+        console.log(`ERROR: ${output.slice(0, 200)}`)
         return { allowed: false, output }
       }
     }
