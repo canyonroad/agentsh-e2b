@@ -34,12 +34,14 @@ async function main() {
     console.log('='.repeat(70))
 
     // Helper to run via agentsh exec HTTP API
+    let reqCounter = 0
     async function runAgentsh(description: string, command: string, args: string[] = []) {
       console.log(`\n--- ${description} ---`)
       console.log(`Command: ${command} ${args.join(' ')}`)
       const body = JSON.stringify({ command, args })
-      await sbx.files.write('/tmp/exec-req.json', body)
-      const cmd = `curl -s -X POST "${AGENTSH_API}/api/v1/sessions/${sessionId}/exec" -H "Content-Type: application/json" -d @/tmp/exec-req.json --max-time 15`
+      const reqFile = `/tmp/exec-req-${++reqCounter}.json`
+      await sbx.files.write(reqFile, body)
+      const cmd = `curl -s -X POST "${AGENTSH_API}/api/v1/sessions/${sessionId}/exec" -H "Content-Type: application/json" -d @${reqFile} --max-time 15`
       try {
         const result = await sbx.commands.run(cmd, { timeout: 20 })
         const resp = JSON.parse(result.stdout)
@@ -48,8 +50,9 @@ async function main() {
         const blocked = resp.events?.blocked_operations || []
 
         console.log(`Exit code: ${exitCode}`)
-        if (blocked.length > 0) {
-          const rule = blocked[0]?.rule || 'unknown'
+        const guidanceRule = resp.guidance?.policy_rule
+        if (blocked.length > 0 || guidanceRule) {
+          const rule = blocked[0]?.policy?.rule || guidanceRule || 'default-deny'
           console.log(`BLOCKED by policy: ${rule}`)
           return { allowed: false, output: stdout }
         }
