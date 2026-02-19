@@ -377,6 +377,8 @@ FUSE is available at runtime via deferred mounting (activated on first exec afte
 | `demo-audit.ts` | Audit trail and event logging |
 | `demo-attack-sim.ts` | Red team attack simulation (44 attacks) |
 | `demo-resource-limits.ts` | Resource limits (PID, memory, CPU, I/O) |
+| `demo-multi-context.ts` | Multi-context command blocking (env, xargs, scripts, Python) |
+| `demo-fuse-protection.ts` | FUSE/VFS-level file protection (symlinks, Python I/O) |
 | `test-template.ts` | Template verification tests |
 
 ## How It Works
