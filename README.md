@@ -76,11 +76,11 @@ agentsh adds a policy enforcement layer inside the sandbox:
 | **HTTP Proxy** | ✅ Works | Network traffic routed through policy-enforcing proxy |
 | **Seccomp** | ✅ Works | Full seccomp with user_notify for syscall interception |
 | **eBPF** | ✅ Works | eBPF-based monitoring and enforcement |
-| **FUSE** | ✅ Works | FUSE filesystem for file operation interception |
+| **FUSE** | ✅ Works | Deferred FUSE filesystem for file operation interception |
 | **Cgroups v2** | ✅ Works | Resource limits via cgroups v2 |
 | **Landlock** | ✅ Works | Landlock ABI v2 for additional filesystem restrictions |
 | **Env Policy** | ✅ Works | Environment variable filtering with allow/deny lists |
-| **Full Security Mode** | ✅ Works | 100% protection score using seccomp + eBPF + FUSE |
+| **Resource Limits** | ✅ Works | PID limits, memory limits, CPU quota, disk I/O limits |
 
 ### Features Not Available in E2B
 
@@ -338,15 +338,15 @@ Running `agentsh detect` inside the E2B sandbox shows the available security fea
 
 ```
 Platform: linux
-Security Mode: full
-Protection Score: 100%
+Security Mode: landlock-only
+Protection Score: 80%
 
 CAPABILITIES
 ----------------------------------------
   capabilities_drop        ✓
   cgroups_v2               ✓
   ebpf                     ✓
-  fuse                     ✓
+  fuse                     -
   landlock                 ✓
   landlock_abi             ✓ (v2)
   landlock_network         -
@@ -354,14 +354,9 @@ CAPABILITIES
   seccomp                  ✓
   seccomp_basic            ✓
   seccomp_user_notify      ✓
-
-TIPS
-----------------------------------------
-  landlock_network: Kernel-level network restrictions disabled
-    -> Requires kernel 6.7+ (Landlock ABI v4). Upgrade kernel or use proxy-based network control.
 ```
 
-This configuration achieves **100% protection score** using seccomp + eBPF + FUSE for complete syscall and file operation interception.
+FUSE is available at runtime via deferred mounting (activated on first exec after `chmod 666 /dev/fuse`). The `agentsh detect` output reflects the state at detection time before FUSE is enabled.
 
 ## Files
 
@@ -370,25 +365,35 @@ This configuration achieves **100% protection score** using seccomp + eBPF + FUS
 | `template.ts` | E2B template definition (v2 SDK) |
 | `build.prod.ts` | Build script |
 | `config.yaml` | agentsh server configuration |
-| `default.yaml` | Security policy (command/network rules) |
-| `demo-blocking.ts` | Command blocking demonstration |
-| `demo-network.ts` | Network blocking demonstration |
+| `default.yaml` | Security policy (command/network/file rules) |
+| `agentsh-startup.sh` | Sandbox startup script (server + shim) |
+| `enable-fuse.sh` | Runtime FUSE enablement helper |
+| `demo-blocking.ts` | Command and filesystem blocking |
+| `demo-network.ts` | Network policy blocking |
+| `demo-quarantine.ts` | Soft-delete and quarantine recovery |
+| `demo-env-filtering.ts` | Environment variable filtering |
+| `demo-package-approval.ts` | Package install approval rules |
+| `demo-detect.ts` | Security capability detection |
+| `demo-audit.ts` | Audit trail and event logging |
+| `demo-attack-sim.ts` | Red team attack simulation (44 attacks) |
+| `demo-resource-limits.ts` | Resource limits (PID, memory, CPU, I/O) |
 | `test-template.ts` | Template verification tests |
 
 ## How It Works
 
-1. **Template Build** - Installs agentsh v0.9.8+ on top of `e2bdev/code-interpreter:latest`
+1. **Template Build** - Installs agentsh v0.10.0 on top of `e2bdev/code-interpreter:latest`
 2. **Sandbox Start** - Startup script runs automatically:
    - Starts `agentsh server` on port 18080
    - Installs shell shim (replaces `/bin/bash` with agentsh shim, moves real bash to `/bin/bash.real`)
 3. **Command Execution** - Two modes:
    - **Shell Shim (transparent)**: Any `/bin/bash` call is intercepted and policy-enforced automatically
-   - **Direct Exec**: Use `agentsh exec SESSION_ID -- COMMAND [ARGS...]` for explicit policy enforcement
+   - **HTTP API**: Use the exec API at `http://127.0.0.1:18080/api/v1/sessions/{id}/exec` for direct policy enforcement
 4. **Network Proxy** - All network traffic routes through agentsh's proxy for policy enforcement
+5. **Deferred FUSE** - FUSE filesystem mounts on first exec (not at startup) for E2B snapshot compatibility
 
 ## Requirements
 
-- agentsh v0.9.8+ (regex patterns for args_patterns, env var injection)
+- agentsh v0.10.0+
 - E2B v2 Template SDK
 - Generic `e2b` package (not `@e2b/code-interpreter`)
 
