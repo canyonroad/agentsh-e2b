@@ -81,30 +81,41 @@ async function main() {
 
     await runAgentsh('/usr/bin/echo Hello', '/bin/bash.real', ['-c', 'echo Hello'])
     await runAgentsh('/usr/bin/pwd', '/usr/bin/pwd')
+    await runAgentsh('/usr/bin/id', '/usr/bin/id')
     await runAgentsh('/usr/bin/ls /home', '/usr/bin/ls', ['/home'])
     await runAgentsh('/usr/bin/date', '/usr/bin/date')
     await runAgentsh('/usr/bin/python3 -c print(1)', '/usr/bin/python3', ['-c', 'print(1)'])
     await runAgentsh('/usr/bin/git --version', '/usr/bin/git', ['--version'])
+    await runAgentsh('/usr/bin/agentsh --version', '/usr/bin/agentsh', ['--version'])
 
-    console.log('\n=== 2. BLOCKED: Privilege Escalation ===')
+    console.log('\n=== 2. DIAGNOSTICS ===')
+    console.log('(Verify security subsystems are active)')
+
+    await runAgentsh('HTTPS_PROXY is set', '/bin/bash.real', ['-c', 'echo $HTTPS_PROXY'])
+    await runAgentsh('FUSE mounted', '/bin/bash.real', ['-c', 'mount | grep agentsh || echo "FUSE NOT MOUNTED (deferred until first exec)"'])
+    await runAgentsh('BASH_ENV active', '/bin/bash.real', ['-c', 'echo $BASH_ENV'])
+    await runAgentsh('kill builtin disabled', '/bin/bash.real', ['-c', 'type kill 2>&1'])
+    await runAgentsh('Read system binary (stat)', '/usr/bin/ls', ['-la', '/usr/bin/ls'])
+
+    console.log('\n=== 3. BLOCKED: Privilege Escalation ===')
 
     await runAgentsh('/usr/bin/sudo whoami', '/usr/bin/sudo', ['whoami'])
     await runAgentsh('/usr/bin/su -', '/usr/bin/su', ['-'])
     await runAgentsh('/usr/sbin/chroot /', '/usr/sbin/chroot', ['/'])
 
-    console.log('\n=== 3. BLOCKED: Network Tools ===')
+    console.log('\n=== 4. BLOCKED: Network Tools ===')
 
     await runAgentsh('/usr/bin/ssh localhost', '/usr/bin/ssh', ['localhost'])
     await runAgentsh('/usr/bin/nc -h', '/usr/bin/nc', ['-h'])
     await runAgentsh('/usr/bin/netcat -h', '/usr/bin/netcat', ['-h'])
 
-    console.log('\n=== 4. BLOCKED: System Commands ===')
+    console.log('\n=== 5. BLOCKED: System Commands ===')
 
     await runAgentsh('/usr/bin/kill -9 1', '/usr/bin/kill', ['-9', '1'])
     await runAgentsh('/usr/sbin/shutdown now', '/usr/sbin/shutdown', ['now'])
     await runAgentsh('/usr/bin/systemctl status', '/usr/bin/systemctl', ['status'])
 
-    console.log('\n=== 5. BLOCKED: Recursive Delete ===')
+    console.log('\n=== 6. BLOCKED: Recursive Delete ===')
 
     // Create test files first via API
     await runAgentsh('setup: mkdir + touch', '/bin/bash.real', ['-c', 'mkdir -p /tmp/test && touch /tmp/test/file.txt'])
@@ -113,30 +124,30 @@ async function main() {
     await runAgentsh('/usr/bin/rm --recursive /tmp/test', '/usr/bin/rm', ['--recursive', '/tmp/test'])
 
     // But single file delete is allowed
-    console.log('\n=== 6. ALLOWED: Single File Delete ===')
+    console.log('\n=== 7. ALLOWED: Single File Delete ===')
     await runAgentsh('setup: mkdir + touch', '/bin/bash.real', ['-c', 'mkdir -p /tmp/test && touch /tmp/test/file.txt'])
     await runAgentsh('/usr/bin/rm /tmp/test/file.txt (single)', '/usr/bin/rm', ['/tmp/test/file.txt'])
 
-    console.log('\n=== 7. FILESYSTEM: Workspace Access (allowed) ===')
+    console.log('\n=== 8. FILESYSTEM: Workspace Access (allowed) ===')
 
     await runAgentsh('Write to workspace', '/usr/bin/python3', ['-c', 'open("/home/user/test-fs.txt","w").write("hello\\n")'])
     await runAgentsh('Read from workspace', '/usr/bin/cat', ['/home/user/test-fs.txt'])
     await runAgentsh('List workspace', '/usr/bin/ls', ['/home/user/test-fs.txt'])
 
-    console.log('\n=== 8. FILESYSTEM: Blocked paths ===')
+    console.log('\n=== 9. FILESYSTEM: Blocked paths ===')
 
     await runAgentsh('Read /proc/1/environ', '/usr/bin/cat', ['/proc/1/environ'])
     await runAgentsh('Read /sys/kernel/hostname', '/usr/bin/cat', ['/sys/kernel/hostname'])
     await runAgentsh('Write to /etc/passwd', '/usr/bin/python3', ['-c', 'open("/etc/passwd","a").write("pwned\\n")'])
     await runAgentsh('Write outside workspace', '/usr/bin/python3', ['-c', 'open("/var/escape.txt","w").write("escape\\n")'])
 
-    console.log('\n=== 9. FILESYSTEM: Credential access (blocked/approve) ===')
+    console.log('\n=== 10. FILESYSTEM: Credential access (blocked/approve) ===')
 
     await runAgentsh('Read ~/.ssh/id_rsa', '/usr/bin/cat', ['/home/user/.ssh/id_rsa'])
     await runAgentsh('Read ~/.aws/credentials', '/usr/bin/cat', ['/home/user/.aws/credentials'])
     await runAgentsh('Read .env file', '/usr/bin/cat', ['/home/user/.env'])
 
-    console.log('\n=== 10. FILESYSTEM: Soft-delete in workspace ===')
+    console.log('\n=== 11. FILESYSTEM: Soft-delete in workspace ===')
 
     await runAgentsh('Create file', '/usr/bin/python3', ['-c', 'open("/home/user/soft-del.txt","w").write("important\\n")'])
     await runAgentsh('Delete workspace file (soft-delete)', '/usr/bin/rm', ['/home/user/soft-del.txt'])
@@ -147,6 +158,14 @@ async function main() {
     console.log('='.repeat(60))
     console.log(`
 agentsh policy enforcement in action:
+
+DIAGNOSTICS:
+  ✓ HTTPS_PROXY           → Proxy routing active
+  ✓ FUSE mounted          → VFS interception (deferred until first exec)
+  ✓ BASH_ENV active       → Shell builtin disabling
+  ✓ kill builtin disabled → kill is /usr/bin/kill, not a shell builtin
+  ✓ Read system binary    → stat /usr/bin/ls allowed (read-only)
+  ✓ agentsh --version     → Binary accessible
 
 COMMAND BLOCKING:
   ✗ sudo, su, chroot    → rule: block-shell-escape
