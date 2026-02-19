@@ -14,7 +14,7 @@ async function main() {
         const h = await sbx.commands.run(`curl -sf http://127.0.0.1:18080/health`, { timeout: 3 })
         if (h.stdout.trim() === 'ok') break
       } catch {}
-      await sbx.commands.run('sleep 1')
+      await new Promise(r => setTimeout(r, 1000))
     }
 
     console.log('='.repeat(60))
@@ -26,7 +26,11 @@ async function main() {
     // =========================================================================
     console.log('\n--- Running: agentsh detect ---\n')
 
-    const detectResult = await sbx.commands.run('agentsh detect 2>&1', { timeout: 15 })
+    // Run agentsh detect via files API to bypass the shim (it's a CLI command
+    // that tries to auto-start a server, conflicting with the running one)
+    await sbx.files.write('/tmp/run-detect.sh', '#!/bin/bash.real\n/usr/bin/agentsh detect 2>&1\n')
+    await sbx.commands.run('chmod +x /tmp/run-detect.sh', { timeout: 5 })
+    const detectResult = await sbx.commands.run('/tmp/run-detect.sh', { timeout: 15 })
     const output = detectResult.stdout.trim()
 
     if (output) {

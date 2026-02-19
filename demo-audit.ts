@@ -16,7 +16,7 @@ async function main() {
         const h = await sbx.commands.run(`curl -sf ${AGENTSH_API}/health`, { timeout: 3 })
         if (h.stdout.trim() === 'ok') break
       } catch {}
-      await sbx.commands.run('sleep 1')
+      await new Promise(r => setTimeout(r, 1000))
     }
 
     // Create a session via HTTP API
