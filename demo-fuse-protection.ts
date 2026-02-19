@@ -5,7 +5,7 @@ const AGENTSH_API = 'http://127.0.0.1:18080'
 
 async function main() {
   console.log('Creating sandbox...')
-  const sbx = await Sandbox.create('e2b-agentsh')
+  const sbx = await Sandbox.create('e2b-agentsh', { timeoutMs: 600_000 })
 
   try {
     console.log(`Sandbox created: ${sbx.sandboxId}\n`)

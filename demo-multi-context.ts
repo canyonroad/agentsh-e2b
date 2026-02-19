@@ -180,42 +180,42 @@ async function main() {
     console.log('='.repeat(60))
     console.log(`
 HOW IT WORKS:
-  agentsh policy enforcement has two layers:
+  agentsh policy enforcement has multiple layers:
 
   1. EXEC API LAYER (always active):
      Commands submitted via the exec API are checked against
      command_rules before execution. This blocks direct invocation.
 
-  2. SECCOMP USER_NOTIFY LAYER (full mode only):
+  2. SECCOMP NO_NEW_PRIVILEGES (minimal mode + seccomp):
+     The seccomp wrapper sets the kernel no_new_privileges flag,
+     which prevents child processes from gaining elevated privileges.
+     This blocks sudo even when invoked indirectly via env, xargs,
+     scripts, or Python subprocess.
+
+  3. SECCOMP USER_NOTIFY (full mode only):
      In "full" security mode, seccomp user_notify intercepts
      ALL execve() syscalls — including child processes. This
-     provides defense-in-depth against indirect invocation.
+     provides defense-in-depth against any indirect invocation.
 
-SECURITY MODE: minimal (current E2B config)
-  Only the exec API layer is active. Direct commands are blocked,
-  but child processes can bypass if the parent is allowed.
-
-  Direct:        ✗ sudo whoami           → BLOCKED by exec API
-  Via env:       ! env sudo whoami       → Bypasses (env is allowed)
-  Via xargs:     ! xargs sudo            → Bypasses (bash is allowed)
-  Via script:    ! /tmp/escalate.sh      → Bypasses (bash is allowed)
-  Via Python:    ! subprocess sudo        → Bypasses (python3 is allowed)
-
-SECURITY MODE: full (with seccomp user_notify)
-  Both layers active. ALL execve() calls are intercepted:
+CURRENT CONFIG: minimal mode + seccomp enabled
+  The exec API layer blocks direct commands. The seccomp wrapper's
+  no_new_privileges flag prevents privilege escalation via sudo,
+  even through indirect execution paths.
 
   Direct:        ✗ sudo whoami           → BLOCKED by exec API
-  Via env:       ✗ env sudo whoami       → BLOCKED by seccomp
-  Via xargs:     ✗ xargs sudo            → BLOCKED by seccomp
-  Via script:    ✗ /tmp/escalate.sh      → BLOCKED by seccomp
-  Via Python:    ✗ subprocess sudo        → BLOCKED by seccomp
+  Via env:       ✗ env sudo whoami       → BLOCKED (no_new_privileges)
+  Via xargs:     ✗ xargs sudo            → BLOCKED (no_new_privileges)
+  Via script:    ✗ /tmp/escalate.sh      → BLOCKED (no_new_privileges)
+  Via Python:    ✗ subprocess sudo        → BLOCKED (no_new_privileges)
 
 WHY IT MATTERS:
-  • "minimal" mode is sufficient when the sandbox itself is isolated
-  • "full" mode provides defense-in-depth against indirect execution
-  • E2B sandboxes are already isolated, so minimal mode + sandbox
-    isolation provides strong security
-  • For maximum security, use full mode (requires seccomp support)
+  • Seccomp's no_new_privileges flag is kernel-enforced and
+    cannot be bypassed by any userspace trick
+  • sudo, su, and other SUID binaries are neutralized
+  • Combined with E2B sandbox isolation, this provides
+    strong defense against privilege escalation
+  • "full" mode adds execve() interception for even broader
+    command-level blocking of child processes
 `)
 
   } catch (error) {

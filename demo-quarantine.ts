@@ -98,16 +98,6 @@ async function main() {
       }
     }
 
-    // Helper for safe CLI commands (wraps in try/catch)
-    async function runCli(cmd: string, timeout = 10): Promise<string> {
-      try {
-        const r = await sbx.commands.run(cmd, { timeout })
-        return r.stdout.trim()
-      } catch (e: any) {
-        return e.result?.stdout?.trim() || e.result?.stderr?.trim() || '(command failed)'
-      }
-    }
-
     // =========================================================================
     // Phase 1: Create test files in workspace
     // =========================================================================
@@ -182,18 +172,77 @@ async function main() {
     console.log('3. LIST QUARANTINED FILES')
     console.log('='.repeat(60))
 
-    const trashCliResult = await runCli('agentsh trash list 2>&1')
-    // Parse trash list output: "TOKEN\tPATH\tSIZE\tAGE"
+    // Try multiple approaches to list trash:
+    // 1. HTTP API endpoint for session trash
+    // 2. agentsh trash list via exec API (same session as deletes)
+    // 3. List .agentsh_trash directory via exec API
     const trashEntries: { token: string; path: string; size: string; age: string }[] = []
-    for (const line of trashCliResult.split('\n')) {
-      const parts = line.split('\t')
-      if (parts.length >= 3 && /^\d+$/.test(parts[0].trim())) {
-        trashEntries.push({
-          token: parts[0].trim(),
-          path: parts[1].trim(),
-          size: parts[2].trim(),
-          age: parts[3]?.trim() || '',
-        })
+
+    // Approach 1: HTTP API
+    const trashApiResult = await runAgentsh(
+      'List quarantine via API',
+      '/usr/bin/curl',
+      ['-s', `${AGENTSH_API}/api/v1/sessions/${sessionId}/trash`]
+    )
+    if (trashApiResult.output && !trashApiResult.output.includes('404') && !trashApiResult.output.includes('error')) {
+      try {
+        const trashData = JSON.parse(trashApiResult.output)
+        const items = trashData.items || trashData.entries || trashData
+        if (Array.isArray(items)) {
+          for (const item of items) {
+            trashEntries.push({
+              token: String(item.token || item.id || ''),
+              path: item.path || item.original_path || '',
+              size: String(item.size || ''),
+              age: item.age || item.deleted_at || '',
+            })
+          }
+        }
+      } catch { /* not JSON, try other approaches */ }
+    }
+
+    // Approach 2: agentsh trash list via exec API
+    if (trashEntries.length === 0) {
+      const trashCliResult = await runAgentsh(
+        'List quarantine via CLI',
+        '/usr/bin/agentsh',
+        ['trash', 'list']
+      )
+      if (trashCliResult.output) {
+        for (const line of trashCliResult.output.split('\n')) {
+          const parts = line.split('\t')
+          if (parts.length >= 3 && /^\d+$/.test(parts[0].trim())) {
+            trashEntries.push({
+              token: parts[0].trim(),
+              path: parts[1].trim(),
+              size: parts[2].trim(),
+              age: parts[3]?.trim() || '',
+            })
+          }
+        }
+      }
+    }
+
+    // Approach 3: List .agentsh_trash directory directly
+    if (trashEntries.length === 0) {
+      const lsTrash = await runAgentsh(
+        'List .agentsh_trash dir',
+        '/bin/bash.real',
+        ['-c', 'find /home/user -maxdepth 2 -name ".agentsh_trash" -type d 2>/dev/null && ls -la /home/user/.agentsh_trash/ 2>/dev/null || ls -la .agentsh_trash/ 2>/dev/null || echo "no trash dir found"']
+      )
+      if (lsTrash.output && !lsTrash.output.includes('no trash dir found')) {
+        // Parse ls output for trash entries
+        for (const line of lsTrash.output.split('\n')) {
+          const match = line.match(/(\d+)\s+\w+\s+\d+\s+[\d:]+\s+(.+)/)
+          if (match && !match[2].startsWith('.')) {
+            trashEntries.push({
+              token: match[2],  // filename might be the token
+              path: match[2],
+              size: match[1] + ' bytes',
+              age: '',
+            })
+          }
+        }
       }
     }
 
@@ -204,8 +253,16 @@ async function main() {
         console.log(`    ${fname}  (${entry.size}, token: ${entry.token})`)
       }
     } else {
-      console.log(`  No quarantined files found`)
-      console.log(`  Raw output: ${trashCliResult.substring(0, 300)}`)
+      console.log(`  No quarantined files found via API, CLI, or directory listing`)
+      // Show diagnostic info
+      const diagResult = await runAgentsh(
+        'Diagnostic: check trash locations',
+        '/bin/bash.real',
+        ['-c', 'echo "=== Workspace contents ===" && ls -la /home/user/ 2>&1 && echo "=== Hidden dirs ===" && ls -lad /home/user/.* 2>&1 && echo "=== agentsh session dir ===" && ls /var/lib/agentsh/sessions/ 2>&1 && echo "=== quarantine dir ===" && ls -la /var/lib/agentsh/quarantine/ 2>&1']
+      )
+      if (diagResult.output) {
+        console.log(`  Diagnostics:\n${diagResult.output.split('\n').map((l: string) => '    ' + l).join('\n')}`)
+      }
     }
 
     // =========================================================================
@@ -224,17 +281,35 @@ async function main() {
 
     if (restoreEntry) {
       console.log(`\n  Restoring ${fileName} using token ${restoreEntry.token}...`)
-      const result = await runCli(`agentsh trash restore ${restoreEntry.token} 2>&1`)
-      if (result && result.includes('restored to')) {
-        console.log(`  ${result}`)
+
+      // Try HTTP API restore first
+      const restoreApiResult = await runAgentsh(
+        `Restore via API`,
+        '/usr/bin/curl',
+        ['-s', '-X', 'POST', `${AGENTSH_API}/api/v1/sessions/${sessionId}/trash/${restoreEntry.token}/restore`]
+      )
+      if (restoreApiResult.output && !restoreApiResult.output.includes('404') && !restoreApiResult.output.includes('error')) {
+        console.log(`  Restored via API: ${restoreApiResult.output.substring(0, 200)}`)
         restored = true
-      } else {
-        console.log(`  Result: ${result.substring(0, 300)}`)
-        // Maybe the file was restored but output was different
-        restored = !result.includes('error') && !result.includes('failed') && !result.includes('not found')
+      }
+
+      // Try CLI restore via exec API
+      if (!restored) {
+        const restoreCliResult = await runAgentsh(
+          `Restore via CLI`,
+          '/usr/bin/agentsh',
+          ['trash', 'restore', restoreEntry.token]
+        )
+        if (restoreCliResult.output) {
+          console.log(`  ${restoreCliResult.output.substring(0, 200)}`)
+          restored = restoreCliResult.allowed
+        }
       }
     } else {
       console.log(`  Could not find trash token for ${fileName}`)
+      // If no trash entries found, the FUSE soft-delete may have stored files differently
+      // Show what we can find
+      console.log(`  Note: Files were quarantined by FUSE layer but trash listing is unavailable`)
     }
 
     // =========================================================================

@@ -59,15 +59,15 @@ sandbox:
   cgroups:
     enabled: true
 
-  # Seccomp - disabled (agentsh-unixwrap needs capabilities not available in E2B)
+  # Seccomp - per-command wrapper via agentsh-unixwrap (inherently deferred)
   seccomp:
-    enabled: false
+    enabled: true
 
-  # Unix socket wrapper - disabled (requires capabilities for seccomp-bpf)
+  # Unix socket wrapper - seccomp-based unix socket interception
   unix_sockets:
-    enabled: false
+    enabled: true
 
-# Security mode - minimal for E2B (seccomp/eBPF not available)
+# Security mode - minimal (seccomp wraps per-command, not server-wide)
 security:
   mode: minimal
   strict: false

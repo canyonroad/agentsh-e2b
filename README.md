@@ -74,7 +74,7 @@ agentsh adds a policy enforcement layer inside the sandbox:
 | **Audit Logging** | ✅ Works | All commands logged with decisions and timing |
 | **Package Registry Access** | ✅ Works | Allowlist for npm, PyPI, crates.io, Go modules |
 | **HTTP Proxy** | ✅ Works | Network traffic routed through policy-enforcing proxy |
-| **Seccomp** | ✅ Works | Full seccomp with user_notify for syscall interception |
+| **Seccomp** | ✅ Works | Per-command seccomp wrapper with `no_new_privileges` — blocks sudo even via indirect paths |
 | **eBPF** | ✅ Works | eBPF-based monitoring and enforcement |
 | **FUSE** | ✅ Works | Deferred FUSE filesystem for file operation interception |
 | **Cgroups v2** | ✅ Works | Resource limits via cgroups v2 |
@@ -391,7 +391,8 @@ FUSE is available at runtime via deferred mounting (activated on first exec afte
    - **Shell Shim (transparent)**: Any `/bin/bash` call is intercepted and policy-enforced automatically
    - **HTTP API**: Use the exec API at `http://127.0.0.1:18080/api/v1/sessions/{id}/exec` for direct policy enforcement
 4. **Network Proxy** - All network traffic routes through agentsh's proxy for policy enforcement
-5. **Deferred FUSE** - FUSE filesystem mounts on first exec (not at startup) for E2B snapshot compatibility
+5. **Seccomp Wrapper** - Each command is wrapped with seccomp (`no_new_privileges` flag), preventing privilege escalation via sudo even through indirect execution (env, xargs, scripts, Python subprocess)
+6. **Deferred FUSE** - FUSE filesystem mounts on first exec (not at startup) for E2B snapshot compatibility
 
 ## Requirements
 
