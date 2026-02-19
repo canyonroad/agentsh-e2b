@@ -44,6 +44,11 @@ sandbox:
   # Detected as available in E2B
   fuse:
     enabled: true
+    deferred: true
+    deferred_marker_file: "/tmp/.agentsh-fuse-enabled"
+    deferred_enable_command: ["sudo", "/bin/chmod", "666", "/dev/fuse"]
+    audit:
+      mode: "soft_delete"
 
   network:
     enabled: true
@@ -54,15 +59,18 @@ sandbox:
   cgroups:
     enabled: true
 
-  # Seccomp with user_notify detected as available in E2B
-  # Full mode: seccomp + eBPF + FUSE for 100% protection
+  # Seccomp - disabled (agentsh-unixwrap needs capabilities not available in E2B)
   seccomp:
-    enabled: true
+    enabled: false
 
-# Security mode as recommended by agentsh detect
+  # Unix socket wrapper - disabled (requires capabilities for seccomp-bpf)
+  unix_sockets:
+    enabled: false
+
+# Security mode - minimal for E2B (seccomp/eBPF not available)
 security:
-  mode: full
-  strict: true
+  mode: minimal
+  strict: false
 
 # Capabilities as recommended by agentsh detect
 capabilities:

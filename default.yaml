@@ -22,6 +22,8 @@ file_rules:
     paths:
       - "${PROJECT_ROOT}"
       - "${PROJECT_ROOT}/**"
+      - "/workspace"
+      - "/workspace/**"
     operations:
       - read
       - open
@@ -35,6 +37,8 @@ file_rules:
     paths:
       - "${PROJECT_ROOT}"
       - "${PROJECT_ROOT}/**"
+      - "/workspace"
+      - "/workspace/**"
     operations:
       - write
       - create
@@ -48,6 +52,8 @@ file_rules:
     paths:
       - "${PROJECT_ROOT}"
       - "${PROJECT_ROOT}/**"
+      - "/workspace"
+      - "/workspace/**"
     operations:
       - delete
       - rmdir
@@ -127,6 +133,13 @@ file_rules:
       - "/etc/ssl/certs/**"
       - "/etc/ca-certificates/**"
       - "/etc/localtime"
+      - "/etc/ld.so.cache"
+      - "/etc/ld.so.preload"
+      - "/etc/ld.so.nohwcap"
+      - "/etc/nsswitch.conf"
+      - "/etc/passwd"
+      - "/etc/group"
+      - "/etc/fuse.conf"
     operations:
       - read
       - stat
@@ -211,6 +224,42 @@ file_rules:
       - open
       - stat
       - list
+    decision: allow
+
+  # ---------------------------------------------------------------------------
+  # Allow essential runtime paths (before deny rules)
+  # ---------------------------------------------------------------------------
+
+  - name: allow-dev-essentials
+    description: Allow access to essential device files
+    paths:
+      - "/dev/null"
+      - "/dev/zero"
+      - "/dev/urandom"
+      - "/dev/random"
+      - "/dev/stdin"
+      - "/dev/stdout"
+      - "/dev/stderr"
+      - "/dev/fd/**"
+      - "/dev/pts/**"
+      - "/dev/tty"
+    operations:
+      - read
+      - open
+      - write
+      - stat
+    decision: allow
+
+  - name: allow-proc-self
+    description: Allow process self-inspection
+    paths:
+      - "/proc/self/**"
+      - "/proc/thread-self/**"
+    operations:
+      - read
+      - open
+      - stat
+      - readlink
     decision: allow
 
   # ---------------------------------------------------------------------------
