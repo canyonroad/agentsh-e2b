@@ -383,7 +383,7 @@ FUSE is available at runtime via deferred mounting (activated on first exec afte
 
 ## How It Works
 
-1. **Template Build** - Installs agentsh v0.10.0 on top of `e2bdev/code-interpreter:latest`
+1. **Template Build** - Installs agentsh v0.10.1 on top of `e2bdev/code-interpreter:latest`
 2. **Sandbox Start** - Startup script runs automatically:
    - Starts `agentsh server` on port 18080
    - Installs shell shim (replaces `/bin/bash` with agentsh shim, moves real bash to `/bin/bash.real`)
@@ -396,7 +396,7 @@ FUSE is available at runtime via deferred mounting (activated on first exec afte
 
 ## Requirements
 
-- agentsh v0.10.0+
+- agentsh v0.10.1+
 - E2B v2 Template SDK
 - Generic `e2b` package (not `@e2b/code-interpreter`)
 
