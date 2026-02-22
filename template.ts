@@ -6,7 +6,7 @@ export const template = Template()
   .setWorkdir('/')
   .setEnvs({
     'AGENTSH_REPO': 'erans/agentsh',
-    'AGENTSH_VERSION': 'v0.10.1',
+    'AGENTSH_VERSION': 'v0.10.4',
   })
   .setEnvs({
     'DEB_ARCH': 'amd64',

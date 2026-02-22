@@ -1,410 +1,174 @@
-# E2B Sandbox with agentsh Security
+# agentsh + E2B
 
-A secure [E2B](https://e2b.dev) sandbox template with [agentsh](https://www.agentsh.org) security enforcement. This template provides a hardened environment for running AI agents with policy-based command and network controls.
+Runtime security governance for AI agents using [agentsh](https://github.com/canyonroad/agentsh) v0.10.4 with [E2B](https://e2b.dev) sandboxes.
 
 ## Why agentsh + E2B?
 
-**E2B provides isolation FROM the sandbox. agentsh provides control INSIDE the sandbox.**
+**E2B provides isolation. agentsh provides governance.**
 
-| Layer | E2B Alone | E2B + agentsh |
-|-------|-----------|---------------|
-| **Container Isolation** | ✅ Agent can't escape sandbox | ✅ Same |
-| **Command Control** | ❌ Agent can run ANY command | ✅ Policy-based allow/block/approve |
-| **Network Control** | ❌ Agent can connect ANYWHERE | ✅ Default-deny allowlist |
-| **Cloud Credential Theft** | ❌ Agent can access `169.254.169.254` | ✅ Blocked by policy |
-| **Data Exfiltration** | ❌ Agent can POST data anywhere | ✅ Only allowed domains |
-| **Destructive Commands** | ❌ `rm -rf /` works | ✅ Blocked + soft-delete recovery |
-| **Lateral Movement** | ❌ Agent can scan internal networks | ✅ Private ranges blocked |
-| **Audit Trail** | ❌ Limited visibility | ✅ Full command + network logging |
-| **Secret Leakage** | ❌ Secrets visible in output | ✅ DLP redacts API keys/tokens |
+E2B sandboxes give AI agents a secure, isolated compute environment. But isolation alone doesn't prevent an agent from:
 
-### The Problem
+- **Exfiltrating data** to unauthorized endpoints
+- **Accessing cloud metadata** (AWS/GCP/Azure credentials at 169.254.169.254)
+- **Leaking secrets** in outputs (API keys, tokens, PII)
+- **Running dangerous commands** (sudo, ssh, kill, nc)
+- **Reaching internal networks** (10.x, 172.16.x, 192.168.x)
+- **Deleting workspace files** permanently
 
-E2B sandboxes isolate AI agents from your infrastructure—but inside the sandbox, the agent has free rein:
+agentsh adds the governance layer that controls what agents can do inside the sandbox, providing defense-in-depth:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  E2B Sandbox                                                │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │  AI Agent can:                                        │  │
-│  │  • Run sudo, ssh, nc, curl to anywhere               │  │
-│  │  • Access cloud metadata (169.254.169.254)           │  │
-│  │  • Connect to internal networks (10.x, 192.168.x)    │  │
-│  │  • Delete critical files (rm -rf)                    │  │
-│  │  • Exfiltrate data to attacker-controlled servers    │  │
-│  └───────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
++---------------------------------------------------------+
+|  E2B Sandbox (Isolation)                                |
+|  +---------------------------------------------------+  |
+|  |  agentsh (Governance)                             |  |
+|  |  +---------------------------------------------+  |  |
+|  |  |  AI Agent                                   |  |  |
+|  |  |  - Commands are policy-checked              |  |  |
+|  |  |  - Network requests are filtered            |  |  |
+|  |  |  - File I/O is intercepted (FUSE)           |  |  |
+|  |  |  - Secrets are redacted from output         |  |  |
+|  |  |  - All actions are audited                  |  |  |
+|  |  +---------------------------------------------+  |  |
+|  +---------------------------------------------------+  |
++---------------------------------------------------------+
 ```
 
-### The Solution
+## What agentsh Adds
 
-agentsh adds a policy enforcement layer inside the sandbox:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  E2B Sandbox + agentsh                                      │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │  agentsh Policy Engine                                │  │
-│  │  ┌─────────────────────────────────────────────────┐  │  │
-│  │  │  AI Agent (controlled):                         │  │  │
-│  │  │  • Commands: allow list, block sudo/ssh/nc      │  │  │
-│  │  │  • Network: allow npm/pypi, block all else      │  │  │
-│  │  │  • Files: soft-delete, quarantine recovery      │  │  │
-│  │  │  • Output: DLP redacts secrets                  │  │  │
-│  │  └─────────────────────────────────────────────────┘  │  │
-│  └───────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Key benefit**: The shell shim makes this transparent—agents don't need code changes. Every `/bin/bash` call is automatically policy-enforced.
-
-## agentsh Features in E2B
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| **Shell Shim** | ✅ Works | Transparent interception of `/bin/bash` - all shell commands routed through policy engine |
-| **Command Policies** | ✅ Works | Block/allow/approve commands based on name, args, paths |
-| **Network Policies** | ✅ Works | Default-deny allowlist for outbound connections |
-| **Cloud Metadata Protection** | ✅ Works | Blocks `169.254.169.254` and cloud provider endpoints |
-| **Private Network Isolation** | ✅ Works | Blocks `10.x`, `172.16.x`, `192.168.x` ranges |
-| **E2B Infrastructure Protection** | ✅ Works | Blocks access to E2B internal services (`192.0.2.x`, `169.254.x`) |
-| **DLP / Secret Redaction** | ✅ Works | Redacts API keys, tokens, secrets from command output |
-| **Session Management** | ✅ Works | Isolated sessions with workspace binding |
-| **Soft-Delete / Quarantine** | ✅ Works | Deleted files moved to quarantine for recovery |
-| **Audit Logging** | ✅ Works | All commands logged with decisions and timing |
-| **Package Registry Access** | ✅ Works | Allowlist for npm, PyPI, crates.io, Go modules |
-| **HTTP Proxy** | ✅ Works | Network traffic routed through policy-enforcing proxy |
-| **Seccomp** | ✅ Works | Per-command seccomp wrapper with `no_new_privileges` — blocks sudo even via indirect paths |
-| **eBPF** | ✅ Works | eBPF-based monitoring and enforcement |
-| **FUSE** | ✅ Works | Deferred FUSE filesystem for file operation interception |
-| **Cgroups v2** | ✅ Works | Resource limits via cgroups v2 |
-| **Landlock** | ✅ Works | Landlock ABI v2 for additional filesystem restrictions |
-| **Env Policy** | ✅ Works | Environment variable filtering with allow/deny lists |
-| **Resource Limits** | ✅ Works | PID limits, memory limits, CPU quota, disk I/O limits |
-
-### Features Not Available in E2B
-
-| Feature | Status | Reason |
-|---------|--------|--------|
-| **Interactive Approvals** | ⚠️ Limited | E2B sandboxes typically run unattended; no human to approve |
-| **Landlock Network** | ❌ N/A | Requires kernel 6.7+ (Landlock ABI v4); use proxy-based network control instead |
-| **PID Namespace** | ❌ N/A | E2B manages process isolation at the sandbox level |
-| **PTY/Terminal Sessions** | ⚠️ Limited | E2B uses non-interactive command execution |
+| E2B Provides | agentsh Adds |
+|--------------|--------------|
+| Compute isolation | Command blocking (seccomp) |
+| Process sandboxing | File I/O policy (FUSE) |
+| API access to sandbox | Domain allowlist/blocklist |
+| Persistent environment | Cloud metadata blocking |
+| | Environment variable filtering |
+| | Secret detection and redaction (DLP) |
+| | Bash builtin interception (BASH_ENV) |
+| | Landlock execution restrictions |
+| | Soft-delete file quarantine |
+| | LLM request auditing |
+| | Complete audit logging |
 
 ## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- E2B account and API key
+- [E2B](https://e2b.dev) account and API key
 - Set environment variables in `.env`:
   ```
   E2B_ACCESS_TOKEN=your_access_token
   E2B_API_KEY=your_api_key
   ```
 
-### Build the Template
+### Build and Test
 
 ```bash
+git clone https://github.com/canyonroad/e2b-agentsh
+cd e2b-agentsh
 npm install
+
+# Build the E2B template
 npx tsx build.prod.ts
-```
 
-### Use the Template
-
-```typescript
-import { Sandbox } from 'e2b'  // Use generic Sandbox, NOT @e2b/code-interpreter
-
-const sbx = await Sandbox.create('e2b-agentsh')
-
-// Server starts automatically via startup script (includes shell shim installation)
-// Verify server is running
-const health = await sbx.commands.run('curl -s http://127.0.0.1:18080/health')
-console.log('Server status:', health.stdout)  // "ok"
-
-// Create a session
-const sess = await sbx.commands.run('agentsh session create --workspace /home/user --json')
-const sessionData = JSON.parse(sess.stdout.trim())
-const sessionId = sessionData.id
-
-// Run commands through agentsh (policy enforced)
-const result = await sbx.commands.run(`agentsh exec ${sessionId} -- /bin/echo Hello, secure world!`)
-console.log(result.stdout)
-
-// Or just use bash directly - the shell shim intercepts it automatically
-const shimResult = await sbx.commands.run('/bin/bash -c "echo Hello through shim"')
-console.log(shimResult.stdout)
-
-await sbx.kill()
+# Run the full test suite (76 tests)
+npx tsx test-template.ts
 ```
 
 > **Important**: Use `import { Sandbox } from 'e2b'` not `@e2b/code-interpreter`. The code-interpreter package overrides custom templates.
 
-## Security Policy
-
-The default policy (`default.yaml`) implements a **default-deny allowlist** approach:
-
-### Command Blocking
-
-| Category | Blocked Commands | Policy Rule |
-|----------|------------------|-------------|
-| Privilege Escalation | `sudo`, `su`, `chroot`, `nsenter` | `block-shell-escape` |
-| Network Tools | `ssh`, `nc`, `netcat`, `telnet`, `scp` | `block-network-tools` |
-| System Commands | `kill`, `shutdown`, `systemctl`, `mount` | `block-system-commands` |
-| Recursive Delete | `rm -rf`, `rm -r`, `rm --recursive` | `block-rm-recursive` |
-| E2B Infrastructure | `socat`, `envd`, `iptables`, `ip` | `block-e2b-interference` |
-
-**Allowed**: Standard commands (`ls`, `cat`, `grep`), dev tools (`git`, `python3`, `node`, `npm`), single-file operations.
-
-### Network Blocking
-
-| Category | Destinations | Result |
-|----------|--------------|--------|
-| **Allowed** | `127.0.0.1:18080` (localhost/agentsh) | HTTP 200 |
-| | `registry.npmjs.org` | HTTP 200 |
-| | `pypi.org`, `files.pythonhosted.org` | HTTP 200 |
-| | `crates.io`, `static.crates.io` | HTTP 200 |
-| | `proxy.golang.org`, `sum.golang.org` | HTTP 200 |
-| **Blocked** | `169.254.169.254` (cloud metadata) | HTTP 403 |
-| | `192.0.2.0/24` (E2B internal services) | HTTP 403 |
-| | `10.0.0.0/8` (private network) | HTTP 403 |
-| | `172.16.0.0/12` (private network) | HTTP 403 |
-| | `192.168.0.0/16` (private network) | HTTP 403 |
-| | All other domains | HTTP 403 (default-deny) |
-
-## Demo Results
-
-### Command Blocking Demo
-
-```
-=== ALLOWED COMMANDS ===
---- /bin/echo Hello ---           ✓ ALLOWED (exit: 0)
---- /bin/pwd ---                  ✓ ALLOWED (exit: 0)
---- /usr/bin/python3 -c print(1) --- ✓ ALLOWED (exit: 0)
---- /usr/bin/git --version ---    ✓ ALLOWED (exit: 0)
-
-=== BLOCKED: Privilege Escalation ===
---- /usr/bin/sudo whoami ---      ✗ BLOCKED (rule: block-shell-escape)
---- /bin/su - ---                 ✗ BLOCKED (rule: block-shell-escape)
-
-=== BLOCKED: Network Tools ===
---- /usr/bin/ssh localhost ---    ✗ BLOCKED (rule: block-network-tools)
---- /bin/nc -h ---                ✗ BLOCKED (rule: block-network-tools)
-
-=== BLOCKED: System Commands ===
---- /bin/kill -9 1 ---            ✗ BLOCKED (rule: block-system-commands)
---- /sbin/shutdown now ---        ✗ BLOCKED (rule: block-system-commands)
-
-=== BLOCKED: Recursive Delete ===
---- /bin/rm -rf /tmp/test ---     ✗ BLOCKED (rule: block-rm-recursive)
-
-=== FILESYSTEM: Workspace Access (allowed) ===
---- Write to workspace ---        ✓ ALLOWED (exit: 0)
---- Read from workspace ---       ✓ ALLOWED (exit: 0)
-
-=== FILESYSTEM: Blocked paths ===
---- Read /proc/1/environ ---      ✗ BLOCKED (rule: deny-proc-sys)
---- Read /sys/kernel/hostname --- ✗ BLOCKED (rule: deny-proc-sys)
---- Write to /etc/passwd ---      ✗ BLOCKED (rule: default-deny-files)
---- Write outside workspace ---   ✗ BLOCKED (rule: default-deny-files)
-
-=== FILESYSTEM: Credential access (blocked/approve) ===
---- Read ~/.ssh/id_rsa ---        ✗ BLOCKED (rule: approve-ssh-access)
---- Read ~/.aws/credentials ---   ✗ BLOCKED (rule: approve-aws-credentials)
---- Read .env file ---            ✗ BLOCKED (rule: approve-env-files)
-
-=== FILESYSTEM: Soft-delete in workspace ===
---- Delete workspace file ---     ✓ SOFT-DELETE (quarantined, recoverable)
-```
-
-### Network Blocking Demo
-
-```
-=== LOCALHOST - ALLOWED ===
-curl http://127.0.0.1:18080/health → ok HTTP_CODE:200
-
-=== CLOUD METADATA - BLOCKED ===
-curl http://169.254.169.254/ → blocked by policy HTTP_CODE:403
-  (rule=block-private-networks)
-
-=== PRIVATE NETWORKS - BLOCKED ===
-curl http://10.0.0.1/ → blocked by policy HTTP_CODE:403
-curl http://192.168.1.1/ → blocked by policy HTTP_CODE:403
-
-=== PACKAGE REGISTRIES - ALLOWED ===
-curl https://registry.npmjs.org/ → HTTP_CODE:200
-curl https://pypi.org/ → HTTP_CODE:200
-
-=== UNKNOWN DOMAINS - BLOCKED (default-deny) ===
-curl https://example.com/ → blocked by policy (rule=default-deny-network)
-curl https://httpbin.org/get → blocked by policy (rule=default-deny-network)
-```
-
-## Customizing the Policy
-
-### Adding Allowed Domains
-
-Edit `default.yaml` to add domains to the allowlist:
-
-```yaml
-network_rules:
-  # ... existing rules ...
-
-  - name: allow-github
-    description: GitHub API access
-    domains:
-      - "api.github.com"
-      - "github.com"
-      - "raw.githubusercontent.com"
-    ports: [443]
-    decision: allow
-
-  - name: allow-custom-api
-    description: Your internal API
-    domains:
-      - "api.yourcompany.com"
-    ports: [443]
-    decision: allow
-```
-
-### Adding Allowed Commands
-
-```yaml
-command_rules:
-  # ... existing rules ...
-
-  - name: allow-docker
-    description: Allow docker commands
-    commands:
-      - docker
-    decision: allow
-```
-
-### Requiring Approval Instead of Blocking
-
-For sensitive operations, use `decision: approve` to require human approval:
-
-```yaml
-  - name: approve-npm-install
-    description: Require approval for package installation
-    commands:
-      - npm
-    args_patterns:
-      - "^install.*"  # regex pattern (v0.7.10+)
-    decision: approve
-    message: "Agent wants to install packages: {{.Args}}"
-    timeout: 5m
-```
-
-> Note: Approvals require `approvals.enabled: true` in `config.yaml`
-
-### Environment Variable Filtering
-
-The `env_policy` section in `default.yaml` controls which environment variables commands can access:
-
-```yaml
-env_policy:
-  # Allowlist - only these vars are visible to commands
-  allow:
-    - PATH
-    - HOME
-    - USER
-    - NODE_ENV
-    - PYTHONPATH
-    - GIT_*           # Wildcards supported
-    - AGENTSH_*
-
-  # Denylist - these are always blocked (takes precedence over allow)
-  deny:
-    - AWS_*
-    - OPENAI_API_KEY
-    - ANTHROPIC_API_KEY
-    - DATABASE_URL
-    - SECRET_*
-    - PASSWORD*
-    - TOKEN*
-
-  # Limits to prevent env enumeration attacks
-  max_bytes: 65536      # Max total size of env vars
-  max_keys: 100         # Max number of env vars
-  block_iteration: true # Prevent enumeration of all env vars
-```
-
-This prevents credential leakage by ensuring agents can only see necessary environment variables while blocking access to secrets like API keys and database credentials.
-
-## E2B Capability Detection
-
-Running `agentsh detect` inside the E2B sandbox shows the available security features:
-
-```
-Platform: linux
-Security Mode: landlock-only
-Protection Score: 80%
-
-CAPABILITIES
-----------------------------------------
-  capabilities_drop        ✓
-  cgroups_v2               ✓
-  ebpf                     ✓
-  fuse                     -
-  landlock                 ✓
-  landlock_abi             ✓ (v2)
-  landlock_network         -
-  pid_namespace            -
-  seccomp                  ✓
-  seccomp_basic            ✓
-  seccomp_user_notify      ✓
-```
-
-FUSE is available at runtime via deferred mounting (activated on first exec after `chmod 666 /dev/fuse`). The `agentsh detect` output reflects the state at detection time before FUSE is enabled.
-
-## Files
-
-| File | Description |
-|------|-------------|
-| `template.ts` | E2B template definition (v2 SDK) |
-| `build.prod.ts` | Build script |
-| `config.yaml` | agentsh server configuration |
-| `default.yaml` | Security policy (command/network/file rules) |
-| `agentsh-startup.sh` | Sandbox startup script (server + shim) |
-| `enable-fuse.sh` | Runtime FUSE enablement helper |
-| `demo-blocking.ts` | Command and filesystem blocking |
-| `demo-network.ts` | Network policy blocking |
-| `demo-quarantine.ts` | Soft-delete and quarantine recovery |
-| `demo-env-filtering.ts` | Environment variable filtering |
-| `demo-package-approval.ts` | Package install approval rules |
-| `demo-detect.ts` | Security capability detection |
-| `demo-audit.ts` | Audit trail and event logging |
-| `demo-attack-sim.ts` | Red team attack simulation (44 attacks) |
-| `demo-resource-limits.ts` | Resource limits (PID, memory, CPU, I/O) |
-| `demo-multi-context.ts` | Multi-context command blocking (env, xargs, scripts, Python) |
-| `demo-fuse-protection.ts` | FUSE/VFS-level file protection (symlinks, Python I/O) |
-| `test-template.ts` | Template verification tests |
-
 ## How It Works
 
-1. **Template Build** - Installs agentsh v0.10.1 on top of `e2bdev/code-interpreter:latest`
-2. **Sandbox Start** - Startup script runs automatically:
-   - Starts `agentsh server` on port 18080
-   - Installs shell shim (replaces `/bin/bash` with agentsh shim, moves real bash to `/bin/bash.real`)
-3. **Command Execution** - Two modes:
-   - **Shell Shim (transparent)**: Any `/bin/bash` call is intercepted and policy-enforced automatically
-   - **HTTP API**: Use the exec API at `http://127.0.0.1:18080/api/v1/sessions/{id}/exec` for direct policy enforcement
-4. **Network Proxy** - All network traffic routes through agentsh's proxy for policy enforcement
-5. **Seccomp Wrapper** - Each command is wrapped with seccomp (`no_new_privileges` flag), preventing privilege escalation via sudo even through indirect execution (env, xargs, scripts, Python subprocess)
-6. **Deferred FUSE** - FUSE filesystem mounts on first exec (not at startup) for E2B snapshot compatibility
+agentsh replaces `/bin/bash` with a [shell shim](https://www.agentsh.org/docs/#shell-shim) that routes every command through the policy engine:
 
-## Requirements
+```
+sbx.commands.run: /bin/bash -c "sudo whoami"
+                     |
+                     v
+            +-------------------+
+            |  Shell Shim       |  /bin/bash -> agentsh-shell-shim
+            |  (intercepts)     |
+            +--------+----------+
+                     |
+                     v
+            +-------------------+
+            |  agentsh server   |  Policy evaluation + seccomp
+            |  (auto-started)   |  + FUSE file interception
+            +--------+----------+
+                     |
+              +------+------+
+              v             v
+        +----------+  +----------+
+        |  ALLOW   |  |  BLOCK   |
+        | exit: 0  |  | exit: 126|
+        +----------+  +----------+
+```
 
-- agentsh v0.10.1+
-- E2B v2 Template SDK
-- Generic `e2b` package (not `@e2b/code-interpreter`)
+Every command that E2B's `sbx.commands.run()` executes is automatically intercepted -- no explicit `agentsh exec` calls needed. The startup script installs the shell shim and starts the agentsh server on port 18080.
+
+## Configuration
+
+Security policy is defined in two files:
+
+- **`config.yaml`** -- Server configuration: network interception, [DLP patterns](https://www.agentsh.org/docs/#llm-proxy), LLM proxy, [FUSE settings](https://www.agentsh.org/docs/#fuse), [seccomp](https://www.agentsh.org/docs/#seccomp), [env_inject](https://www.agentsh.org/docs/#shell-shim) (BASH_ENV for builtin blocking)
+- **`default.yaml`** -- [Policy rules](https://www.agentsh.org/docs/#policy-reference): [command rules](https://www.agentsh.org/docs/#command-rules), [network rules](https://www.agentsh.org/docs/#network-rules), [file rules](https://www.agentsh.org/docs/#file-rules), [environment policy](https://www.agentsh.org/docs/#environment-policy)
+
+See the [agentsh documentation](https://www.agentsh.org/docs/) for the full policy reference.
+
+## Project Structure
+
+```
+e2b-agentsh/
+├── template.ts              # E2B template definition (v2 SDK)
+├── build.prod.ts            # Build script
+├── config.yaml              # Server config (FUSE, seccomp, DLP, network)
+├── default.yaml             # Security policy (commands, network, files, env)
+├── agentsh-startup.sh       # Sandbox startup script (server + shim)
+├── enable-fuse.sh           # Runtime FUSE enablement helper
+├── test-template.ts         # Template verification tests (76 tests)
+├── demo-blocking.ts         # Command and filesystem blocking
+├── demo-network.ts          # Network policy blocking
+├── demo-quarantine.ts       # Soft-delete and quarantine recovery
+├── demo-env-filtering.ts    # Environment variable filtering
+├── demo-package-approval.ts # Package install approval rules
+├── demo-detect.ts           # Security capability detection
+├── demo-audit.ts            # Audit trail and event logging
+├── demo-attack-sim.ts       # Red team attack simulation (44 attacks)
+├── demo-resource-limits.ts  # Resource limits (PID, memory, CPU, I/O)
+├── demo-multi-context.ts    # Multi-context command blocking
+├── demo-fuse-protection.ts  # FUSE/VFS-level file protection
+└── package.json
+```
+
+## Testing
+
+The `test-template.ts` script creates an E2B sandbox and runs 76 security tests across 12 categories:
+
+- **Installation** -- agentsh binary, seccomp linkage
+- **Server & config** -- health check, policy/config files, FUSE deferred, seccomp enabled
+- **Shell shim** -- static linked shim, bash.real preserved, echo/Python through shim
+- **Policy evaluation** -- static policy-test for sudo, echo, workspace, credentials, /etc
+- **Security diagnostics** -- agentsh detect: seccomp, cgroups_v2, landlock, ebpf
+- **Command blocking** -- sudo, su, ssh, kill, rm -rf blocked; echo, python3, git allowed
+- **Network blocking** -- npmjs.org allowed; metadata, evil.com, private networks, github.com blocked
+- **Environment policy** -- sensitive vars filtered, HOME/PATH present, BASH_ENV set
+- **File I/O** -- workspace/tmp writes allowed; /etc, /usr/bin writes blocked (FUSE); symlink escape blocked
+- **Multi-context blocking** -- env/xargs/find -exec/Python subprocess/os.system sudo blocked
+- **FUSE workspace** -- session workspace-mnt exists, soft-delete create/rm/verify
+- **Credential blocking** -- ~/.ssh/id_rsa, ~/.aws/credentials, /proc/1/environ blocked
+
+```bash
+npx tsx test-template.ts
+```
+
+## Related Projects
+
+- [agentsh](https://github.com/canyonroad/agentsh) -- Runtime security for AI agents ([docs](https://www.agentsh.org/docs/))
+- [agentsh + Blaxel](https://github.com/canyonroad/agentsh-blaxel) -- agentsh integration with Blaxel sandboxes
+- [agentsh + Daytona](https://github.com/canyonroad/agentsh-daytona) -- agentsh integration with Daytona sandboxes
+- [E2B](https://e2b.dev) -- Cloud sandbox platform
 
 ## License
 
 MIT
-
-## Related
-
-- [agentsh](https://www.agentsh.org) - Security sandbox for AI agents
-- [E2B](https://e2b.dev) - Cloud sandbox platform
