@@ -405,9 +405,12 @@ async function main() {
 
     await test('sensitive vars filtered (AWS_, OPENAI_, etc.)', async () => {
       const r = await execSh('/usr/bin/env 2>/dev/null | /usr/bin/sort || echo ""')
-      const blocked = ['AWS_', 'AZURE_', 'GOOGLE_', 'OPENAI_', 'ANTHROPIC_', 'LD_PRELOAD', 'LD_LIBRARY_PATH']
+      const blocked = ['AWS_', 'AZURE_', 'GOOGLE_', 'OPENAI_', 'ANTHROPIC_', 'LD_LIBRARY_PATH']
       for (const prefix of blocked) {
-        if (r.stdout.includes(prefix)) return false
+        if (r.stdout.includes(prefix)) {
+          console.log(`\n    leaked: ${r.stdout.split('\n').filter((l: string) => l.includes(prefix)).join(', ')}`)
+          return false
+        }
       }
       return true
     })

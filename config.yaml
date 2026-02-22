@@ -120,6 +120,7 @@ dlp:
 policies:
   dir: "/etc/agentsh/policies"
   default_policy: "default"
+  env_shim_path: "/bin/bash"
 
 approvals:
   enabled: false
