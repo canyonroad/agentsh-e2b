@@ -165,8 +165,6 @@ npx tsx test-template.ts
 ## Related Projects
 
 - [agentsh](https://github.com/canyonroad/agentsh) -- Runtime security for AI agents ([docs](https://www.agentsh.org/docs/))
-- [agentsh + Blaxel](https://github.com/canyonroad/agentsh-blaxel) -- agentsh integration with Blaxel sandboxes
-- [agentsh + Daytona](https://github.com/canyonroad/agentsh-daytona) -- agentsh integration with Daytona sandboxes
 - [E2B](https://e2b.dev) -- Cloud sandbox platform
 
 ## License
