@@ -39,7 +39,7 @@ async function main() {
       }
     }
     // Small delay between tests to avoid overwhelming the agentsh exec API
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise(resolve => setTimeout(resolve, 200))
   }
 
   console.log('Creating sandbox with e2b-agentsh template...')
@@ -228,7 +228,7 @@ async function main() {
 
     // Helper: execute via agentsh session API
     let reqCounter = 0
-    async function exec(command: string, args: string[] = [], retries = 1) {
+    async function exec(command: string, args: string[] = [], retries = 2) {
       for (let attempt = 0; attempt <= retries; attempt++) {
         const body = JSON.stringify({ command, args })
         const reqFile = `/tmp/exec-req-${++reqCounter}.json`
@@ -259,7 +259,7 @@ async function main() {
         const exitCode = resp.result?.exit_code ?? -1
         // Retry transient exit 127 (server didn't find command / PATH issue)
         if (exitCode === 127 && attempt < retries) {
-          await new Promise(resolve => setTimeout(resolve, 500))
+          await new Promise(resolve => setTimeout(resolve, 1000))
           continue
         }
         const stdout = resp.result?.stdout || ''
