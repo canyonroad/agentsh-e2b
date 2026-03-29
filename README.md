@@ -1,6 +1,6 @@
 # agentsh + E2B
 
-Runtime security governance for AI agents using [agentsh](https://github.com/canyonroad/agentsh) v0.16.8 with [E2B](https://e2b.dev) sandboxes.
+Runtime security governance for AI agents using [agentsh](https://github.com/canyonroad/agentsh) v0.16.9 with [E2B](https://e2b.dev) sandboxes.
 
 ## Why agentsh + E2B?
 

@@ -62,6 +62,8 @@ sandbox:
   # Seccomp - per-command wrapper via agentsh-unixwrap (inherently deferred)
   seccomp:
     enabled: true
+    file_monitor:
+      enabled: false  # E2B lacks Yama PR_SET_PTRACER support; ProcessVMReadv fails
 
   # Unix socket wrapper - seccomp-based unix socket interception
   unix_sockets:
@@ -120,7 +122,7 @@ dlp:
 policies:
   dir: "/etc/agentsh/policies"
   default_policy: "default"
-  env_shim_path: "/bin/bash"
+  env_shim_path: "/usr/lib/agentsh/libenvshim.so"
 
 approvals:
   enabled: false
