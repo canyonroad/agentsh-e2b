@@ -149,7 +149,7 @@ The `test-template.ts` script creates an E2B sandbox and runs 76 security tests 
 - **Server & config** -- health check, policy/config files, FUSE deferred, seccomp enabled
 - **Shell shim** -- static linked shim, bash.real preserved, echo/Python through shim
 - **Policy evaluation** -- static policy-test for sudo, echo, workspace, credentials, /etc
-- **Security diagnostics** -- agentsh detect: seccomp, cgroups_v2, landlock, ebpf
+- **Security diagnostics** -- agentsh detect: seccomp, cgroups_v2, landlock; ebpf unavailable (E2B lacks CAP_BPF)
 - **Command blocking** -- sudo, su, ssh, kill, rm -rf blocked; echo, python3, git allowed
 - **Network blocking** -- npmjs.org allowed; metadata, evil.com, private networks, github.com blocked
 - **Environment policy** -- sensitive vars filtered, HOME/PATH present, BASH_ENV set
