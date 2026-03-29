@@ -184,30 +184,19 @@ async function main() {
     // =========================================================================
     console.log('\n=== Security Diagnostics ===')
 
-    await test('agentsh detect: seccomp available', async () => {
-      const r = await sbx.commands.run('agentsh detect 2>&1 | grep -E "seccomp\\s"')
-      return r.stdout.includes('✓')
-    })
+    // Run detect once and parse the CAPABILITIES section
+    const detectOut = (await sbx.commands.run('agentsh detect 2>&1', { timeoutMs: 30_000 })).stdout
+    const capSection = detectOut.substring(detectOut.indexOf('CAPABILITIES'))
+    function capAvailable(key: string): boolean {
+      const re = new RegExp(`^\\s+${key}\\s+✓`, 'm')
+      return re.test(capSection)
+    }
 
-    await test('agentsh detect: seccomp_basic available', async () => {
-      const r = await sbx.commands.run('agentsh detect 2>&1 | grep seccomp_basic')
-      return r.stdout.includes('✓')
-    })
-
-    await test('agentsh detect: cgroups_v2 available', async () => {
-      const r = await sbx.commands.run('agentsh detect 2>&1 | grep cgroups_v2')
-      return r.stdout.includes('✓')
-    })
-
-    await test('agentsh detect: landlock available', async () => {
-      const r = await sbx.commands.run('agentsh detect 2>&1 | grep -E "landlock\\s"')
-      return r.stdout.includes('✓')
-    })
-
-    await test('agentsh detect: ebpf available', async () => {
-      const r = await sbx.commands.run('agentsh detect 2>&1 | grep ebpf')
-      return r.stdout.includes('✓')
-    })
+    await test('agentsh detect: seccomp available', async () => capAvailable('seccomp_basic') || capAvailable('seccomp'))
+    await test('agentsh detect: seccomp_basic available', async () => capAvailable('seccomp_basic'))
+    await test('agentsh detect: cgroups_v2 available', async () => capAvailable('cgroups_v2'))
+    await test('agentsh detect: landlock available', async () => capAvailable('landlock'))
+    await test('agentsh detect: ebpf unavailable (E2B lacks CAP_BPF)', async () => !capAvailable('ebpf'))
 
     // =========================================================================
     // ENABLE FUSE & CREATE AGENTSH SESSION
