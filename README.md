@@ -1,6 +1,6 @@
 # agentsh + E2B
 
-Runtime security governance for AI agents using [agentsh](https://github.com/canyonroad/agentsh) v0.16.9 with [E2B](https://e2b.dev) sandboxes.
+Runtime security governance for AI agents using [agentsh](https://github.com/canyonroad/agentsh) v0.18.0 with [E2B](https://e2b.dev) sandboxes.
 
 ## Why agentsh + E2B?
 
@@ -25,7 +25,7 @@ agentsh adds the governance layer that controls what agents can do inside the sa
 |  |  +---------------------------------------------+  |  |
 |  |  |  AI Agent                                   |  |  |
 |  |  |  - Commands are policy-checked              |  |  |
-|  |  |  - Network requests are filtered            |  |  |
+|  |  |  - Network requests are filtered (ptrace)   |  |  |
 |  |  |  - File I/O is intercepted (FUSE)           |  |  |
 |  |  |  - Secrets are redacted from output         |  |  |
 |  |  |  - All actions are audited                  |  |  |
@@ -42,6 +42,7 @@ agentsh adds the governance layer that controls what agents can do inside the sa
 | Process sandboxing | File I/O policy (FUSE) |
 | API access to sandbox | Domain allowlist/blocklist |
 | Persistent environment | Cloud metadata blocking |
+| | Kernel-level network interception (ptrace) |
 | | Environment variable filtering |
 | | Secret detection and redaction (DLP) |
 | | Bash builtin interception (BASH_ENV) |
@@ -111,7 +112,7 @@ Every command that E2B's `sbx.commands.run()` executes is automatically intercep
 
 Security policy is defined in two files:
 
-- **`config.yaml`** -- Server configuration: network interception, [DLP patterns](https://www.agentsh.org/docs/#llm-proxy), LLM proxy, [FUSE settings](https://www.agentsh.org/docs/#fuse), [seccomp](https://www.agentsh.org/docs/#seccomp), [env_inject](https://www.agentsh.org/docs/#shell-shim) (BASH_ENV for builtin blocking)
+- **`config.yaml`** -- Server configuration: network interception, [DLP patterns](https://www.agentsh.org/docs/#llm-proxy), LLM proxy, [FUSE settings](https://www.agentsh.org/docs/#fuse), [seccomp](https://www.agentsh.org/docs/#seccomp), [ptrace](https://www.agentsh.org/docs/#ptrace) network enforcement, [env_inject](https://www.agentsh.org/docs/#shell-shim) (BASH_ENV for builtin blocking)
 - **`default.yaml`** -- [Policy rules](https://www.agentsh.org/docs/#policy-reference): [command rules](https://www.agentsh.org/docs/#command-rules), [network rules](https://www.agentsh.org/docs/#network-rules), [file rules](https://www.agentsh.org/docs/#file-rules), [environment policy](https://www.agentsh.org/docs/#environment-policy)
 
 See the [agentsh documentation](https://www.agentsh.org/docs/) for the full policy reference.
@@ -149,7 +150,7 @@ The `test-template.ts` script creates an E2B sandbox and runs 76 security tests 
 - **Server & config** -- health check, policy/config files, FUSE deferred, seccomp enabled
 - **Shell shim** -- static linked shim, bash.real preserved, echo/Python through shim
 - **Policy evaluation** -- static policy-test for sudo, echo, workspace, credentials, /etc
-- **Security diagnostics** -- agentsh detect: seccomp, cgroups_v2, landlock; ebpf unavailable (E2B lacks CAP_BPF)
+- **Security diagnostics** -- agentsh detect: seccomp, landlock; cgroups_v2 unavailable (E2B lacks cgroup write), ebpf unavailable (E2B lacks CAP_BPF)
 - **Command blocking** -- sudo, su, ssh, kill, rm -rf blocked; echo, python3, git allowed
 - **Network blocking** -- npmjs.org allowed; metadata, evil.com, private networks, github.com blocked
 - **Environment policy** -- sensitive vars filtered, HOME/PATH present, BASH_ENV set

@@ -48,26 +48,47 @@ sandbox:
     deferred_marker_file: "/tmp/.agentsh-fuse-enabled"
     deferred_enable_command: ["sudo", "/bin/chmod", "666", "/dev/fuse"]
     audit:
+      enabled: true
       mode: "soft_delete"
+      trash_path: ".agentsh_trash"
+      ttl: "24h"
+      quota: "1GB"
 
   network:
     enabled: true
     intercept_mode: "all"
     proxy_listen_addr: "127.0.0.1:0"
 
-  # Cgroups v2 detected as available in E2B
+  # Cgroups v2 - not available in E2B (v0.18.0 pre-flight check fails)
   cgroups:
-    enabled: true
+    enabled: false
 
-  # Seccomp - per-command wrapper via agentsh-unixwrap (inherently deferred)
+  # Seccomp - syscall blocking (dangerous syscalls killed at kernel level)
   seccomp:
     enabled: true
     file_monitor:
       enabled: false  # E2B lacks Yama PR_SET_PTRACER support; ProcessVMReadv fails
 
-  # Unix socket wrapper - seccomp-based unix socket interception
+  # Unix socket wrapper - disabled: ptrace with network tracing requires this off
   unix_sockets:
+    enabled: false
+
+  # Ptrace - kernel-level network syscall interception (connect, bind, sendto)
+  # Replaces eBPF network enforcement which is unavailable in E2B (no CAP_BPF)
+  # File/signal tracing disabled: Landlock + FUSE handle file protection
+  ptrace:
     enabled: true
+    attach_mode: "children"
+    trace:
+      execve: true
+      file: false      # Landlock + FUSE handle file protection
+      network: true    # Kernel-level network enforcement (the gap)
+      signal: false
+    performance:
+      seccomp_prefilter: true  # Pre-filter irrelevant syscalls at kernel level
+      max_tracees: 500
+      max_hold_ms: 5000
+    on_attach_failure: "fail_closed"  # Deny execution if ptrace can't attach
 
 # Security mode - minimal (seccomp wraps per-command, not server-wide)
 security:
@@ -121,7 +142,7 @@ dlp:
 
 policies:
   dir: "/etc/agentsh/policies"
-  default_policy: "default"
+  default: "default"
   env_shim_path: "/usr/lib/agentsh/libenvshim.so"
 
 approvals:
